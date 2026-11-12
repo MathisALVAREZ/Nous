@@ -233,6 +233,11 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 .tl.story button { position: relative; text-align: left; display: flex; flex-direction: column; gap: 3px; }
 .tl.story button::before { content: ""; position: absolute; left: -21px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 22%, transparent); }
 .tl.story div::before { display: none; }
+.tbars { display: flex; align-items: flex-end; gap: 3px; height: 100%; }
+.tbars i { flex: 1; min-width: 2px; border-radius: 3px 3px 1px 1px; background: var(--ink2); }
+.tbars i.now { background: var(--accent); }
+.tnum { font: 750 26px/1 var(--display); min-width: 38px; text-align: center; }
+.ibtn { font-size: 22px; font-weight: 600; }
 .coupon { border-style: dashed; border-width: 1.5px; }
 .coupon.used { opacity: .55; }
 .coupon.used .mid { text-decoration: line-through; }
@@ -388,7 +393,7 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 /* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
 const D = document;
 const $ = (s, r = D) => r.querySelector(s);
-const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles'];
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs'];
 const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
 let B = null; // stockage actif
 const VIEWS = {};
@@ -487,6 +492,7 @@ const Demo = {
   view() {
     const me = S.me.id, cols = {};
     const mine = new Set(Object.values(this.raw.answers).filter(a => a.user === me).map(a => a.date));
+    const hiddenT = new Set(Object.values(this.raw.trackers || {}).filter(t => t.by !== me && (t.vis || 'private') === 'private').map(t => t.id));
     for (const c of COLS) {
       cols[c] = {};
       for (const d of Object.values(this.raw[c] || {})) {
@@ -494,6 +500,7 @@ const Demo = {
         if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
         if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
         if (c === 'scheduled' && d.by !== me) continue;
+        if ((c === 'trackers' && hiddenT.has(d.id)) || (c === 'tlogs' && (hiddenT.has(d.tracker) || !this.raw.trackers[d.tracker]))) continue; // compteurs privés
         if (c === 'cycles' && d.by !== me && !(this.raw.profiles[d.by] || {}).shareCycle) continue; // suivi privé tant qu'il n'est pas partagé // un mot programmé reste secret jusqu'à l'heure
         cols[c][d.id] = v;
       }
@@ -1152,7 +1159,7 @@ VIEWS.plus = () => {
   const tiles = [
     ['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['photos', '📸', 'Photos'],
     ['docs', '🗂️', 'Documents'], ['listes', '✅', 'Listes', all('items').filter(i => !i.done).length], ['envies', '🎁', 'Envies'],
-    ['cycle', '🌸', 'Cycle'], ['histoire', '📖', 'Notre histoire'], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['rebours', '⏳', 'Comptes à rebours'],
+    ['suivi', '📊', 'Suivi'], ['cycle', '🌸', 'Cycle'], ['histoire', '📖', 'Notre histoire'], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['rebours', '⏳', 'Comptes à rebours'],
     ['roue', '🎡', 'La roue'], ['reglages', '⚙️', 'Réglages']
   ];
   return [head('Plus'), h('div', { class: 'tiles' }, tiles.map(([id, e, lab, n]) => h('button', { class: 'glass tile', onclick: () => go(id) }, h('span', { class: 'e' }, e), lab, n ? h('span', { class: 'badge' }, n) : null)))];
@@ -1582,6 +1589,72 @@ VIEWS.cycle = () => {
   return out;
 };
 
+/* ----- suivi (compteurs) ----- */
+// Un compteur est privé, partagé (l'autre le voit) ou à deux (les deux comptent). Vérifié côté serveur.
+const T_PRESETS = [['🚬', 'Clopes'], ['☕', 'Cafés'], ['💧', 'Verres d\'eau'], ['🏃', 'Sport'], ['🍺', 'Verres d\'alcool'], ['❤️', 'Câlins'], ['📵', 'Soirées sans écran'], ['🍫', 'Sucreries']];
+const T_VIS = { private: ['🔒', 'Privé'], shared: ['👀', 'Partagé'], both: ['👫', 'À deux'] };
+const relTime = ts => { const m = Math.round((Date.now() - ts) / 60e3); return m < 1 ? 'à l\'instant' : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : `il y a ${Math.round(m / 1440)} j`; };
+function tIndex() { const ix = {}; for (const l of all('tlogs')) { const x = ix[l.tracker] = ix[l.tracker] || { d: {}, last: 0 }; x.d[l.date] = (x.d[l.date] || 0) + (+l.n || 0); if ((+l.n || 0) > 0 && l.last > x.last) x.last = l.last; } return ix; }
+function tBump(t, delta) {
+  const d = today(), id = `${t.id}_${d}_${S.me.id}`, cur = S.cols.tlogs[id] || { id, tracker: t.id, date: d, user: S.me.id, n: 0 };
+  const n = Math.max(0, (+cur.n || 0) + delta); if (n === (+cur.n || 0)) return;
+  put('tlogs', { ...cur, n, last: delta > 0 ? Date.now() : cur.last });
+}
+function tBars(x, days) {
+  const t = today(), vals = Array.from({ length: days }, (_, i) => (x.d[addDays(t, i - days + 1)] || 0)), max = Math.max(1, ...vals);
+  return h('div', { class: 'tbars', role: 'img', 'aria-label': `${days} derniers jours : ${vals.join(', ')}` }, vals.map((v, i) => h('i', { class: i === days - 1 ? 'now' : '', title: `${fmtD(addDays(t, i - days + 1))} : ${v}`, style: { height: Math.max(v ? 12 : 4, v / max * 100) + '%', opacity: v ? 1 : .3 } })));
+}
+function tStats(x) {
+  const t = today(), week = Array.from({ length: 7 }, (_, i) => x.d[addDays(t, -i)] || 0), wk = week.reduce((a, b) => a + b, 0);
+  let since = null; if (!(x.d[t] > 0)) { const ds = Object.keys(x.d).filter(d => x.d[d] > 0 && d < t).sort(); if (ds.length) since = daysBetween(ds[ds.length - 1], t); }
+  return { wk, avg: (wk / 7).toFixed(1).replace('.', ','), since };
+}
+function trackerForm(t) {
+  const isNew = !t.id;
+  formSheet({
+    title: isNew ? 'Nouveau compteur' : 'Modifier le compteur', values: { emoji: '📊', vis: 'private', goalType: 'none', goal: 5, ...t },
+    fields: [
+      isNew && { k: 'preset', label: 'Idées', type: 'select', options: [['', 'Je choisis moi-même'], ...T_PRESETS.map(([e, n]) => [e + '|' + n, e + ' ' + n])] },
+      { k: 'name', label: 'Nom', ph: 'Ce que tu veux compter', showIf: v => !v.preset, required: true }, { k: 'emoji', label: 'Emoji', showIf: v => !v.preset },
+      { k: 'vis', label: 'Qui le voit', type: 'seg', options: [['private', '🔒 Moi'], ['shared', `👀 ${other().name} aussi`], ['both', '👫 À deux']], hint: 'Moi : toi uniquement. Aussi : l\'autre le voit sans pouvoir compter. À deux : vous comptez tous les deux.' },
+      { k: 'goalType', label: 'Objectif par jour', type: 'select', options: [['none', 'Aucun'], ['max', 'Ne pas dépasser'], ['min', 'Atteindre au moins']] },
+      { k: 'goal', label: 'Nombre', type: 'number', min: 0, showIf: v => v.goalType !== 'none' }
+    ].filter(Boolean),
+    onSubmit: v => { const d = { ...v }; if (d.preset) { const [e, n] = d.preset.split('|'); d.emoji = e; d.name = n; } delete d.preset; return put('trackers', d); },
+    onDelete: isNew ? null : async () => { for (const l of all('tlogs').filter(l => l.tracker === t.id && l.user === S.me.id)) await del('tlogs', l.id); await del('trackers', t.id); }
+  });
+}
+function trackerSheet(id) {
+  openSheet((S.cols.trackers[id] || {}).name || 'Compteur', c => {
+    const t = S.cols.trackers[id]; if (!t) return h('div', { class: 'empty' }, 'Compteur supprimé.');
+    const x = tIndex()[id] || { d: {}, last: 0 }, st = tStats(x), tot = Object.values(x.d).reduce((a, b) => a + b, 0), best = Object.entries(x.d).sort((a, b) => b[1] - a[1])[0];
+    const m30 = Array.from({ length: 30 }, (_, i) => x.d[addDays(today(), -i)] || 0).reduce((a, b) => a + b, 0);
+    const fact = (l, v) => h('div', null, h('div', { class: 'tiny muted' }, l), h('div', { class: 'b num' }, v));
+    return [h('div', { class: 'eyebrow' }, '30 derniers jours'), h('div', { style: { height: '110px' } }, tBars(x, 30)),
+    h('div', { class: 'row wrap', style: { gap: '18px' } }, fact('7 jours', st.wk), fact('30 jours', m30), fact('Moyenne / jour', st.avg), fact('Total', tot), best && best[1] ? fact('Record', `${best[1]} le ${fmtD(best[0], { day: 'numeric', month: 'short' })}`) : null, x.last ? fact('Dernière fois', relTime(x.last)) : null),
+    t.by === S.me.id ? h('button', { class: 'btn full', onclick: () => { c.close(); trackerForm(t); } }, 'Modifier ou supprimer') : h('p', { class: 'small faint' }, `Compteur de ${nameOf(t.by)}.`)];
+  });
+}
+VIEWS.suivi = () => {
+  const me = S.me.id, ix = tIndex(), t = today(), ts = all('trackers').sort((a, b) => (a.at || 0) - (b.at || 0));
+  return [
+    head('Suivi', { back: 'plus', add: () => trackerForm({}), addLabel: 'Nouveau compteur' }),
+    ts.length ? ts.map(tr => {
+      const x = ix[tr.id] || { d: {}, last: 0 }, n = x.d[t] || 0, st = tStats(x), can = tr.by === me || tr.vis === 'both', v = T_VIS[tr.vis] || T_VIS.private;
+      const g = +tr.goal || 0, over = tr.goalType === 'max' && n > g, ok = tr.goalType === 'min' && n >= g;
+      return sec(
+        h('div', { class: 'row' },
+          h('button', { class: 'row grow', style: { textAlign: 'left' }, onclick: () => trackerSheet(tr.id) }, h('span', { class: 'emo', style: { fontSize: '22px' } }, tr.emoji || '📊'), h('div', { class: 'grow' }, h('div', { class: 'mid ell' }, tr.name), h('div', { class: 'small muted' }, `${v[0]} ${v[1]}${tr.by !== me ? ' · ' + nameOf(tr.by) : ''}`))),
+          can && h('button', { class: 'ibtn', 'aria-label': 'Retirer un', onclick: () => tBump(tr, -1) }, '−'),
+          h('div', { class: 'tnum num ' + (over ? 'bad' : ok ? 'good' : '') }, n),
+          can && h('button', { class: 'ibtn pri', 'aria-label': 'Ajouter un', onclick: () => tBump(tr, 1) }, icon('plus'))),
+        h('div', { style: { height: '46px' } }, tBars(x, 14)),
+        h('div', { class: 'small muted' }, [tr.goalType === 'max' ? (over ? `Objectif dépassé de ${n - g}` : `${g - n} restant${g - n > 1 ? 's' : ''} avant la limite de ${g}`) : tr.goalType === 'min' ? (ok ? 'Objectif du jour atteint ✓' : `Encore ${g - n} pour l'objectif de ${g}`) : '', `7 jours : ${st.wk} (${st.avg}/jour)`, st.since ? `aucun depuis ${st.since} jour${st.since > 1 ? 's' : ''}` : x.last ? `dernière fois ${relTime(x.last)}` : ''].filter(Boolean).join(' · ')));
+    }) : sec(h('div', { class: 'empty' }, 'Crée ton premier compteur avec le bouton + : clopes, cafés, sport, ce que tu veux.')),
+    h('p', { class: 'small faint center' }, 'Un compteur privé n\'est visible que par toi.')
+  ];
+};
+
 </script>
 <script>
 'use strict';
@@ -1601,6 +1674,13 @@ window.nousSeed = function () {
   // réglages
   const ago = (y, m, d) => { const x = pd(t); x.setFullYear(x.getFullYear() - y); x.setMonth(x.getMonth() - m); x.setDate(x.getDate() - d); return iso(x); };
   add('profiles', { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 1200, since: ago(1, 8, 3) });
+  // compteurs
+  add('trackers', { id: 'tk_cafe', name: 'Cafés', emoji: '☕', vis: 'shared', goalType: 'max', goal: 4 });
+  add('trackers', { id: 'tk_sport', name: 'Sport', emoji: '🏃', vis: 'both', goalType: 'none' }, G);
+  add('trackers', { id: 'tk_clope', name: 'Clopes', emoji: '🚬', vis: 'private', goalType: 'max', goal: 5 });
+  [3, 4, 2, 5, 3, 3, 4, 2, 3, 6, 3, 4, 3, 2].forEach((n, i) => add('tlogs', { id: `tk_cafe_${addDays(t, i - 13)}_${M}`, tracker: 'tk_cafe', date: addDays(t, i - 13), user: M, n, last: now - (13 - i) * 864e5 - 2 * 3600e3 }));
+  [6, 4, 5, 3, 4, 2, 3, 3, 2, 4, 1, 2, 0, 1].forEach((n, i) => add('tlogs', { id: `tk_clope_${addDays(t, i - 13)}_${M}`, tracker: 'tk_clope', date: addDays(t, i - 13), user: M, n, last: now - (13 - i) * 864e5 - 3600e3 }));
+  [[12, M], [9, G], [9, M], [5, G], [2, M], [2, G]].forEach(([a, u]) => add('tlogs', { id: `tk_sport_${addDays(t, -a)}_${u}`, tracker: 'tk_sport', date: addDays(t, -a), user: u, n: 1, last: now - a * 864e5 }, u));
   // humeur, histoire, bons, mot programmé
   add('moods', { id: t + '_' + G, date: t, user: G, emoji: '🥰', text: 'Hâte d\'être à ce soir' }, G, 2);
   add('milestones', { title: 'Premier rendez-vous', date: ago(1, 8, 3), emoji: '☕', note: 'Un café qui a duré quatre heures.' });

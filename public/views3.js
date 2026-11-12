@@ -179,3 +179,69 @@ VIEWS.cycle = () => {
   out.push(h('p', { class: 'small faint center' }, 'Les dates à venir sont une estimation calculée sur les cycles précédents. Ce n\'est ni un avis médical ni un moyen de contraception.'));
   return out;
 };
+
+/* ----- suivi (compteurs) ----- */
+// Un compteur est privé, partagé (l'autre le voit) ou à deux (les deux comptent). Vérifié côté serveur.
+const T_PRESETS = [['🚬', 'Clopes'], ['☕', 'Cafés'], ['💧', 'Verres d\'eau'], ['🏃', 'Sport'], ['🍺', 'Verres d\'alcool'], ['❤️', 'Câlins'], ['📵', 'Soirées sans écran'], ['🍫', 'Sucreries']];
+const T_VIS = { private: ['🔒', 'Privé'], shared: ['👀', 'Partagé'], both: ['👫', 'À deux'] };
+const relTime = ts => { const m = Math.round((Date.now() - ts) / 60e3); return m < 1 ? 'à l\'instant' : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : `il y a ${Math.round(m / 1440)} j`; };
+function tIndex() { const ix = {}; for (const l of all('tlogs')) { const x = ix[l.tracker] = ix[l.tracker] || { d: {}, last: 0 }; x.d[l.date] = (x.d[l.date] || 0) + (+l.n || 0); if ((+l.n || 0) > 0 && l.last > x.last) x.last = l.last; } return ix; }
+function tBump(t, delta) {
+  const d = today(), id = `${t.id}_${d}_${S.me.id}`, cur = S.cols.tlogs[id] || { id, tracker: t.id, date: d, user: S.me.id, n: 0 };
+  const n = Math.max(0, (+cur.n || 0) + delta); if (n === (+cur.n || 0)) return;
+  put('tlogs', { ...cur, n, last: delta > 0 ? Date.now() : cur.last });
+}
+function tBars(x, days) {
+  const t = today(), vals = Array.from({ length: days }, (_, i) => (x.d[addDays(t, i - days + 1)] || 0)), max = Math.max(1, ...vals);
+  return h('div', { class: 'tbars', role: 'img', 'aria-label': `${days} derniers jours : ${vals.join(', ')}` }, vals.map((v, i) => h('i', { class: i === days - 1 ? 'now' : '', title: `${fmtD(addDays(t, i - days + 1))} : ${v}`, style: { height: Math.max(v ? 12 : 4, v / max * 100) + '%', opacity: v ? 1 : .3 } })));
+}
+function tStats(x) {
+  const t = today(), week = Array.from({ length: 7 }, (_, i) => x.d[addDays(t, -i)] || 0), wk = week.reduce((a, b) => a + b, 0);
+  let since = null; if (!(x.d[t] > 0)) { const ds = Object.keys(x.d).filter(d => x.d[d] > 0 && d < t).sort(); if (ds.length) since = daysBetween(ds[ds.length - 1], t); }
+  return { wk, avg: (wk / 7).toFixed(1).replace('.', ','), since };
+}
+function trackerForm(t) {
+  const isNew = !t.id;
+  formSheet({
+    title: isNew ? 'Nouveau compteur' : 'Modifier le compteur', values: { emoji: '📊', vis: 'private', goalType: 'none', goal: 5, ...t },
+    fields: [
+      isNew && { k: 'preset', label: 'Idées', type: 'select', options: [['', 'Je choisis moi-même'], ...T_PRESETS.map(([e, n]) => [e + '|' + n, e + ' ' + n])] },
+      { k: 'name', label: 'Nom', ph: 'Ce que tu veux compter', showIf: v => !v.preset, required: true }, { k: 'emoji', label: 'Emoji', showIf: v => !v.preset },
+      { k: 'vis', label: 'Qui le voit', type: 'seg', options: [['private', '🔒 Moi'], ['shared', `👀 ${other().name} aussi`], ['both', '👫 À deux']], hint: 'Moi : toi uniquement. Aussi : l\'autre le voit sans pouvoir compter. À deux : vous comptez tous les deux.' },
+      { k: 'goalType', label: 'Objectif par jour', type: 'select', options: [['none', 'Aucun'], ['max', 'Ne pas dépasser'], ['min', 'Atteindre au moins']] },
+      { k: 'goal', label: 'Nombre', type: 'number', min: 0, showIf: v => v.goalType !== 'none' }
+    ].filter(Boolean),
+    onSubmit: v => { const d = { ...v }; if (d.preset) { const [e, n] = d.preset.split('|'); d.emoji = e; d.name = n; } delete d.preset; return put('trackers', d); },
+    onDelete: isNew ? null : async () => { for (const l of all('tlogs').filter(l => l.tracker === t.id && l.user === S.me.id)) await del('tlogs', l.id); await del('trackers', t.id); }
+  });
+}
+function trackerSheet(id) {
+  openSheet((S.cols.trackers[id] || {}).name || 'Compteur', c => {
+    const t = S.cols.trackers[id]; if (!t) return h('div', { class: 'empty' }, 'Compteur supprimé.');
+    const x = tIndex()[id] || { d: {}, last: 0 }, st = tStats(x), tot = Object.values(x.d).reduce((a, b) => a + b, 0), best = Object.entries(x.d).sort((a, b) => b[1] - a[1])[0];
+    const m30 = Array.from({ length: 30 }, (_, i) => x.d[addDays(today(), -i)] || 0).reduce((a, b) => a + b, 0);
+    const fact = (l, v) => h('div', null, h('div', { class: 'tiny muted' }, l), h('div', { class: 'b num' }, v));
+    return [h('div', { class: 'eyebrow' }, '30 derniers jours'), h('div', { style: { height: '110px' } }, tBars(x, 30)),
+    h('div', { class: 'row wrap', style: { gap: '18px' } }, fact('7 jours', st.wk), fact('30 jours', m30), fact('Moyenne / jour', st.avg), fact('Total', tot), best && best[1] ? fact('Record', `${best[1]} le ${fmtD(best[0], { day: 'numeric', month: 'short' })}`) : null, x.last ? fact('Dernière fois', relTime(x.last)) : null),
+    t.by === S.me.id ? h('button', { class: 'btn full', onclick: () => { c.close(); trackerForm(t); } }, 'Modifier ou supprimer') : h('p', { class: 'small faint' }, `Compteur de ${nameOf(t.by)}.`)];
+  });
+}
+VIEWS.suivi = () => {
+  const me = S.me.id, ix = tIndex(), t = today(), ts = all('trackers').sort((a, b) => (a.at || 0) - (b.at || 0));
+  return [
+    head('Suivi', { back: 'plus', add: () => trackerForm({}), addLabel: 'Nouveau compteur' }),
+    ts.length ? ts.map(tr => {
+      const x = ix[tr.id] || { d: {}, last: 0 }, n = x.d[t] || 0, st = tStats(x), can = tr.by === me || tr.vis === 'both', v = T_VIS[tr.vis] || T_VIS.private;
+      const g = +tr.goal || 0, over = tr.goalType === 'max' && n > g, ok = tr.goalType === 'min' && n >= g;
+      return sec(
+        h('div', { class: 'row' },
+          h('button', { class: 'row grow', style: { textAlign: 'left' }, onclick: () => trackerSheet(tr.id) }, h('span', { class: 'emo', style: { fontSize: '22px' } }, tr.emoji || '📊'), h('div', { class: 'grow' }, h('div', { class: 'mid ell' }, tr.name), h('div', { class: 'small muted' }, `${v[0]} ${v[1]}${tr.by !== me ? ' · ' + nameOf(tr.by) : ''}`))),
+          can && h('button', { class: 'ibtn', 'aria-label': 'Retirer un', onclick: () => tBump(tr, -1) }, '−'),
+          h('div', { class: 'tnum num ' + (over ? 'bad' : ok ? 'good' : '') }, n),
+          can && h('button', { class: 'ibtn pri', 'aria-label': 'Ajouter un', onclick: () => tBump(tr, 1) }, icon('plus'))),
+        h('div', { style: { height: '46px' } }, tBars(x, 14)),
+        h('div', { class: 'small muted' }, [tr.goalType === 'max' ? (over ? `Objectif dépassé de ${n - g}` : `${g - n} restant${g - n > 1 ? 's' : ''} avant la limite de ${g}`) : tr.goalType === 'min' ? (ok ? 'Objectif du jour atteint ✓' : `Encore ${g - n} pour l'objectif de ${g}`) : '', `7 jours : ${st.wk} (${st.avg}/jour)`, st.since ? `aucun depuis ${st.since} jour${st.since > 1 ? 's' : ''}` : x.last ? `dernière fois ${relTime(x.last)}` : ''].filter(Boolean).join(' · ')));
+    }) : sec(h('div', { class: 'empty' }, 'Crée ton premier compteur avec le bouton + : clopes, cafés, sport, ce que tu veux.')),
+    h('p', { class: 'small faint center' }, 'Un compteur privé n\'est visible que par toi.')
+  ];
+};

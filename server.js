@@ -20,7 +20,7 @@ const TZ = 'Europe/Paris';
 fs.mkdirSync(FILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
-  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles'];
+  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs'];
 
 /* ---------- base ---------- */
 const db = new Database(path.join(DATA, 'nous.db'));
@@ -162,10 +162,12 @@ app.post('/api/password', auth, async (req, res) => {
 
 /* ---------- données ---------- */
 // Ce que chacun a le droit de voir : pas la réservation de ses propres envies, pas la réponse de l'autre avant d'avoir répondu.
-function viewFor(col, doc, me, mine, sharers) {
+function viewFor(col, doc, me, mine, sharers, hiddenT) {
   if (col === 'wishes' && doc.owner === me) { const d = { ...doc }; delete d.reservedBy; return d; }
   if (col === 'answers' && doc.user !== me && !mine.has(doc.date)) return { id: doc.id, date: doc.date, user: doc.user, by: doc.by, at: doc.at, hidden: true };
   if (col === 'scheduled' && doc.by !== me) return null;
+  if (col === 'trackers' && hiddenT && hiddenT.has(doc.id)) return null; // compteur privé de l'autre
+  if (col === 'tlogs' && hiddenT && hiddenT.has(doc.tracker)) return null;
   if (col === 'cycles' && doc.by !== me && !(sharers && sharers.has(doc.by))) return null; // suivi du cycle : privé tant que son auteur ne le partage pas // un mot programmé reste secret jusqu'à l'heure
   return doc;
 }
@@ -176,8 +178,9 @@ app.get('/api/sync', auth, (req, res) => {
   const parsed = rows.map(r => [r.col, JSON.parse(r.data)]);
   const mine = new Set(parsed.filter(([c, d]) => c === 'answers' && d.user === me).map(([, d]) => d.date));
   for (const c of COLS) cols[c] = {};
+  const hiddenT = new Set(parsed.filter(([c, d]) => c === 'trackers' && d.by !== me && (d.vis || 'private') === 'private').map(([, d]) => d.id));
   const sharers = new Set(parsed.filter(([c, d]) => c === 'profiles' && d.shareCycle === true).map(([, d]) => d.id));
-  for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers); if (v) cols[c][d.id] = v; }
+  for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers, hiddenT); if (v) cols[c][d.id] = v; }
   res.json({ rev, me: req.user, users: users(), cols, vapid: vapid.publicKey, today: today() });
 });
 
@@ -223,7 +226,12 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
   delete doc.hidden;
   if (col === 'wishes' && prev && prev.owner === req.user.id) { if (prev.reservedBy) doc.reservedBy = prev.reservedBy; else delete doc.reservedBy; }
   if (col === 'profiles' && id !== '_couple' && id !== req.user.id) return res.status(403).json({ error: 'Pas ton profil' });
-  if ((col === 'scheduled' || col === 'moods' || col === 'cycles') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
+  if (col === 'tlogs') {
+    const tr = getDoc('trackers', String((req.body || {}).tracker || ''));
+    if (!tr || (tr.by !== req.user.id && tr.vis !== 'both')) return res.status(403).json({ error: 'Compteur inaccessible' });
+    req.body.user = req.user.id;
+  }
+  if ((col === 'scheduled' || col === 'moods' || col === 'cycles' || col === 'trackers' || col === 'tlogs') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
   if (col === 'answers') { doc.user = req.user.id; if (prev && prev.user !== req.user.id) return res.status(403).json({ error: 'Pas ta réponse' }); }
   db.prepare('INSERT INTO docs(col,id,data,by,at) VALUES(?,?,?,?,?) ON CONFLICT(col,id) DO UPDATE SET data=excluded.data, at=excluded.at')
     .run(col, id, JSON.stringify(doc), doc.by, doc.at);
@@ -234,7 +242,8 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
 app.delete('/api/c/:col/:id', auth, (req, res) => {
   const { col, id } = req.params;
   if (!COLS.includes(col)) return res.status(400).json({ error: 'Collection inconnue' });
-  if (col === 'scheduled' || col === 'cycles') { const p = getDoc(col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
+  if (col === 'trackers') { const p = getDoc(col, id); if (p && p.by === req.user.id) for (const l of allDocs('tlogs')) if (l.tracker === id) db.prepare('DELETE FROM docs WHERE col=? AND id=?').run('tlogs', l.id); }
+  if (col === 'scheduled' || col === 'cycles' || col === 'trackers' || col === 'tlogs') { const p = getDoc(col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
   db.prepare('DELETE FROM docs WHERE col=? AND id=?').run(col, id);
   bump();
   res.json({ ok: true, rev });

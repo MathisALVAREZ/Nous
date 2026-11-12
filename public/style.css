@@ -226,6 +226,11 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 .tl.story button { position: relative; text-align: left; display: flex; flex-direction: column; gap: 3px; }
 .tl.story button::before { content: ""; position: absolute; left: -21px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 22%, transparent); }
 .tl.story div::before { display: none; }
+.tbars { display: flex; align-items: flex-end; gap: 3px; height: 100%; }
+.tbars i { flex: 1; min-width: 2px; border-radius: 3px 3px 1px 1px; background: var(--ink2); }
+.tbars i.now { background: var(--accent); }
+.tnum { font: 750 26px/1 var(--display); min-width: 38px; text-align: center; }
+.ibtn { font-size: 22px; font-weight: 600; }
 .coupon { border-style: dashed; border-width: 1.5px; }
 .coupon.used { opacity: .55; }
 .coupon.used .mid { text-decoration: line-through; }

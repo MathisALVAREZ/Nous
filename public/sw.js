@@ -1,5 +1,5 @@
 /* Nous — service worker : notifications push et ouverture hors connexion. */
-const CACHE = 'nous-v3';
+const CACHE = 'nous-v4';
 const SHELL = ['/', '/style.css', '/questions.js', '/core.js', '/views1.js', '/views2.js', '/views3.js', '/boot.js', '/icon-192.png', '/manifest.webmanifest'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

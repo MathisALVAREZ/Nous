@@ -5,7 +5,7 @@ VIEWS.plus = () => {
   const tiles = [
     ['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['photos', '📸', 'Photos'],
     ['docs', '🗂️', 'Documents'], ['listes', '✅', 'Listes', all('items').filter(i => !i.done).length], ['envies', '🎁', 'Envies'],
-    ['cycle', '🌸', 'Cycle'], ['histoire', '📖', 'Notre histoire'], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['rebours', '⏳', 'Comptes à rebours'],
+    ['suivi', '📊', 'Suivi'], ['cycle', '🌸', 'Cycle'], ['histoire', '📖', 'Notre histoire'], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['rebours', '⏳', 'Comptes à rebours'],
     ['roue', '🎡', 'La roue'], ['reglages', '⚙️', 'Réglages']
   ];
   return [head('Plus'), h('div', { class: 'tiles' }, tiles.map(([id, e, lab, n]) => h('button', { class: 'glass tile', onclick: () => go(id) }, h('span', { class: 'e' }, e), lab, n ? h('span', { class: 'badge' }, n) : null)))];

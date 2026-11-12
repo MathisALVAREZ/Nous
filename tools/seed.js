@@ -15,6 +15,13 @@ window.nousSeed = function () {
   // réglages
   const ago = (y, m, d) => { const x = pd(t); x.setFullYear(x.getFullYear() - y); x.setMonth(x.getMonth() - m); x.setDate(x.getDate() - d); return iso(x); };
   add('profiles', { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 1200, since: ago(1, 8, 3) });
+  // compteurs
+  add('trackers', { id: 'tk_cafe', name: 'Cafés', emoji: '☕', vis: 'shared', goalType: 'max', goal: 4 });
+  add('trackers', { id: 'tk_sport', name: 'Sport', emoji: '🏃', vis: 'both', goalType: 'none' }, G);
+  add('trackers', { id: 'tk_clope', name: 'Clopes', emoji: '🚬', vis: 'private', goalType: 'max', goal: 5 });
+  [3, 4, 2, 5, 3, 3, 4, 2, 3, 6, 3, 4, 3, 2].forEach((n, i) => add('tlogs', { id: `tk_cafe_${addDays(t, i - 13)}_${M}`, tracker: 'tk_cafe', date: addDays(t, i - 13), user: M, n, last: now - (13 - i) * 864e5 - 2 * 3600e3 }));
+  [6, 4, 5, 3, 4, 2, 3, 3, 2, 4, 1, 2, 0, 1].forEach((n, i) => add('tlogs', { id: `tk_clope_${addDays(t, i - 13)}_${M}`, tracker: 'tk_clope', date: addDays(t, i - 13), user: M, n, last: now - (13 - i) * 864e5 - 3600e3 }));
+  [[12, M], [9, G], [9, M], [5, G], [2, M], [2, G]].forEach(([a, u]) => add('tlogs', { id: `tk_sport_${addDays(t, -a)}_${u}`, tracker: 'tk_sport', date: addDays(t, -a), user: u, n: 1, last: now - a * 864e5 }, u));
   // humeur, histoire, bons, mot programmé
   add('moods', { id: t + '_' + G, date: t, user: G, emoji: '🥰', text: 'Hâte d\'être à ce soir' }, G, 2);
   add('milestones', { title: 'Premier rendez-vous', date: ago(1, 8, 3), emoji: '☕', note: 'Un café qui a duré quatre heures.' });

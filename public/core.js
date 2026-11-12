@@ -2,7 +2,7 @@
 /* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
 const D = document;
 const $ = (s, r = D) => r.querySelector(s);
-const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles'];
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs'];
 const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
 let B = null; // stockage actif
 const VIEWS = {};
@@ -101,6 +101,7 @@ const Demo = {
   view() {
     const me = S.me.id, cols = {};
     const mine = new Set(Object.values(this.raw.answers).filter(a => a.user === me).map(a => a.date));
+    const hiddenT = new Set(Object.values(this.raw.trackers || {}).filter(t => t.by !== me && (t.vis || 'private') === 'private').map(t => t.id));
     for (const c of COLS) {
       cols[c] = {};
       for (const d of Object.values(this.raw[c] || {})) {
@@ -108,6 +109,7 @@ const Demo = {
         if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
         if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
         if (c === 'scheduled' && d.by !== me) continue;
+        if ((c === 'trackers' && hiddenT.has(d.id)) || (c === 'tlogs' && (hiddenT.has(d.tracker) || !this.raw.trackers[d.tracker]))) continue; // compteurs privés
         if (c === 'cycles' && d.by !== me && !(this.raw.profiles[d.by] || {}).shareCycle) continue; // suivi privé tant qu'il n'est pas partagé // un mot programmé reste secret jusqu'à l'heure
         cols[c][d.id] = v;
       }
