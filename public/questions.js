@@ -93,6 +93,35 @@
     { t: 'who', q: "Qui de nous deux est le plus bavard au réveil ?" },
     { t: 'open', q: "Un mot doux pour finir la journée ?" }
   ];
+  // Défis de la semaine (un par semaine, dans l'ordre)
+  Q.defis = [
+    "Cuisinez ensemble un plat que vous n'avez jamais fait.",
+    "Une soirée entière sans téléphone, tous les deux.",
+    "Écrivez-vous chacun un mot à la main et cachez-le dans les affaires de l'autre.",
+    "Allez marcher une heure dans un quartier que vous ne connaissez pas.",
+    "Chacun fait découvrir à l'autre un film qu'il adore.",
+    "Prenez une photo de vous deux dans un endroit inhabituel.",
+    "Préparez un petit-déjeuner surprise pour l'autre.",
+    "Testez un resto d'une cuisine que vous n'avez jamais goûtée.",
+    "Faites une partie de jeu de société, le perdant fait la vaisselle.",
+    "Dites-vous trois choses que vous aimez chez l'autre, à voix haute.",
+    "Organisez un pique-nique, même dans le salon.",
+    "Apprenez ensemble quelque chose en moins d'une heure (un pas de danse, un tour de cartes, un nœud).",
+    "Refaites votre premier rendez-vous.",
+    "Triez ensemble un placard ou un tiroir qui déborde.",
+    "Chacun prépare une playlist de cinq morceaux pour l'autre.",
+    "Passez une soirée à regarder vos vieilles photos.",
+    "Faites un compliment sincère à l'autre chaque jour de la semaine.",
+    "Allez voir un lever ou un coucher de soleil ensemble.",
+    "Cuisinez un dessert et partagez-le avec des amis ou des voisins.",
+    "Planifiez ensemble un week-end, même pour dans six mois.",
+    "Faites du sport ensemble une fois cette semaine.",
+    "Écrivez la liste de dix choses à faire ensemble avant la fin de l'année.",
+    "Offrez-vous chacun un petit cadeau à moins de cinq euros.",
+    "Passez un repas entier à vous poser des questions que vous ne vous êtes jamais posées.",
+    "Visitez un musée ou une expo, puis chacun choisit son œuvre préférée.",
+    "Faites une grasse matinée assumée, sans réveil ni programme."
+  ];
   if (typeof module !== 'undefined' && module.exports) module.exports = Q;
   else root.NOUS_QUESTIONS = Q;
 })(this);

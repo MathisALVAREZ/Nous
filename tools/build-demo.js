@@ -3,7 +3,7 @@
 const fs = require('fs'), path = require('path');
 const pub = f => fs.readFileSync(path.join(__dirname, '..', 'public', f), 'utf8');
 const esc = s => s.replace(/<\/script/gi, '<\\/script');
-const js = ['questions.js', 'core.js', 'views1.js', 'views2.js', 'views3.js'].map(pub).concat(fs.readFileSync(path.join(__dirname, 'seed.js'), 'utf8')).map(esc);
+const js = ['questions.js', 'core.js', 'views1.js', 'views2.js', 'views3.js', 'views4.js'].map(pub).concat(fs.readFileSync(path.join(__dirname, 'seed.js'), 'utf8')).map(esc);
 const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>

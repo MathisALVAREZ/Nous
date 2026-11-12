@@ -20,7 +20,7 @@ const TZ = 'Europe/Paris';
 fs.mkdirSync(FILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
-  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs'];
+  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs'];
 
 /* ---------- base ---------- */
 const db = new Database(path.join(DATA, 'nous.db'));
@@ -166,6 +166,8 @@ function viewFor(col, doc, me, mine, sharers, hiddenT) {
   if (col === 'wishes' && doc.owner === me) { const d = { ...doc }; delete d.reservedBy; return d; }
   if (col === 'answers' && doc.user !== me && !mine.has(doc.date)) return { id: doc.id, date: doc.date, user: doc.user, by: doc.by, at: doc.at, hidden: true };
   if (col === 'scheduled' && doc.by !== me) return null;
+  if (col === 'quiz' && doc.about !== me && !doc.guess) { const d = { ...doc }; delete d.answer; return d; } // réponse cachée tant qu'on n'a pas deviné
+  if (col === 'capsules' && doc.by !== me && doc.openAt > today()) { const d = { ...doc, sealed: true }; delete d.text; return d; } // capsule scellée
   if (col === 'trackers' && hiddenT && hiddenT.has(doc.id)) return null; // compteur privé de l'autre
   if (col === 'tlogs' && hiddenT && hiddenT.has(doc.tracker)) return null;
   if (col === 'cycles' && doc.by !== me && !(sharers && sharers.has(doc.by))) return null; // suivi du cycle : privé tant que son auteur ne le partage pas // un mot programmé reste secret jusqu'à l'heure
@@ -208,6 +210,23 @@ function notify(col, doc, prev, user) {
       pushTo(o.id, { title: 'Question du jour', body: done ? `${n} a répondu, viens voir vos réponses 👀` : `${n} a répondu. À toi !`, tag: 'question', url: '/#question' }).catch(() => {});
     });
   }
+  if (col === 'pokes' && cooled('poke:' + user.id, 15e3)) return send({ title: `${n} pense à toi 💗`, body: doc.n > 1 ? `Déjà ${doc.n} fois aujourd'hui` : 'Juste comme ça.', tag: 'poke', url: '/' }, true);
+  if (col === 'trips') {
+    if (!prev) return send({ title: 'Trajets', body: `${n} a ajouté un trajet ${doc.from} → ${doc.to} le ${dm(doc.date)}`, tag: 'trajet', url: '/#trajets' });
+    if (!prev.arrivedAt && doc.arrivedAt) return send({ title: 'Bien arrivé 🚄', body: `${n} est bien arrivé à ${doc.to}`, tag: 'trajet', url: '/#trajets' }, true);
+  }
+  if (col === 'disputes') {
+    if (!prev) return send({ title: 'Tribunal ⚖️', body: `${n} ouvre une affaire : ${doc.title}`, tag: 'trib-' + doc.id, url: '/#tribunal' });
+    if (!prev.winner && doc.winner) return send({ title: 'Verdict ⚖️', body: `${(users().find(u => u.id === doc.winner) || {}).name || '?'} a raison : ${doc.title}`, tag: 'trib-' + doc.id, url: '/#tribunal' });
+  }
+  if (col === 'quiz') {
+    if (!prev) return send({ title: 'Quiz 🎯', body: `${n} te pose une question sur lui. Sauras-tu deviner sa réponse ?`, tag: 'quiz', url: '/#quiz' });
+    if (!prev.guess && doc.guess) return send({ title: 'Quiz 🎯', body: `${n} a tenté de deviner ta réponse. À toi de juger.`, tag: 'quiz', url: '/#quiz' });
+    if (prev.ok == null && doc.ok != null) return send({ title: 'Quiz 🎯', body: doc.ok ? 'Bonne réponse 🎉' : 'Raté cette fois 😅', tag: 'quiz', url: '/#quiz' });
+  }
+  if (col === 'capsules' && !prev) return send({ title: 'Capsule 💊', body: `${n} a scellé une capsule jusqu'au ${dm(doc.openAt)}`, tag: 'capsule', url: '/#capsules' });
+  if (col === 'potins' && !prev) return send({ title: 'Cagnotte 🏝️', body: `${n} a versé ${(+doc.amount || 0).toFixed(2).replace('.', ',')} €`, tag: 'cagnotte', url: '/#cagnotte' });
+  if (col === 'songs' && !prev) return send({ title: 'Playlist 🎶', body: `${n} a ajouté ${doc.title}${doc.artist ? ' · ' + doc.artist : ''}`, tag: 'playlist', url: '/#playlist' });
   if (col === 'moods' && (!prev || prev.emoji !== doc.emoji) && cooled('mood:' + user.id, 20 * 60e3)) return send({ title: `Humeur de ${n}`, body: `${doc.emoji} ${doc.text || ''}`.trim(), tag: 'humeur', url: '/' });
   if (col === 'cycles' && !prev && (getDoc('profiles', user.id) || {}).shareCycle === true && doc.start >= today(new Date(Date.now() - 2 * 864e5))) return send({ title: 'Cycle 🌸', body: `${n} a indiqué le début de ses règles. C'est le moment d'être aux petits soins.`, tag: 'cycle', url: '/#cycle' }, true);
   if (col === 'coupons') {
@@ -223,15 +242,23 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
   if (!COLS.includes(col) || !/^[\w.-]{1,80}$/.test(id)) return res.status(400).json({ error: 'Collection inconnue' });
   const prev = getDoc(col, id);
   const doc = { ...(req.body || {}), id, by: prev ? prev.by : req.user.id, at: Date.now() };
-  delete doc.hidden;
+  delete doc.hidden; delete doc.sealed;
   if (col === 'wishes' && prev && prev.owner === req.user.id) { if (prev.reservedBy) doc.reservedBy = prev.reservedBy; else delete doc.reservedBy; }
   if (col === 'profiles' && id !== '_couple' && id !== req.user.id) return res.status(403).json({ error: 'Pas ton profil' });
+  if (col === 'quiz') {
+    if (!prev) req.body.about = req.user.id;
+    else if (req.user.id === prev.about) { req.body.q = prev.q; if (prev.guess !== undefined) req.body.guess = prev.guess; else delete req.body.guess; }
+    else { req.body.q = prev.q; req.body.answer = prev.answer; if (prev.ok !== undefined) req.body.ok = prev.ok; else delete req.body.ok; }
+    if (prev) req.body.about = prev.about;
+  }
+  if (col === 'capsules' && prev) { if (prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); req.body.text = prev.text; req.body.openAt = prev.openAt; }
+  if (col === 'pokes') req.body.user = req.user.id;
   if (col === 'tlogs') {
     const tr = getDoc('trackers', String((req.body || {}).tracker || ''));
     if (!tr || (tr.by !== req.user.id && tr.vis !== 'both')) return res.status(403).json({ error: 'Compteur inaccessible' });
     req.body.user = req.user.id;
   }
-  if ((col === 'scheduled' || col === 'moods' || col === 'cycles' || col === 'trackers' || col === 'tlogs') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
+  if ((col === 'scheduled' || col === 'moods' || col === 'cycles' || col === 'trackers' || col === 'tlogs' || col === 'pokes') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
   if (col === 'answers') { doc.user = req.user.id; if (prev && prev.user !== req.user.id) return res.status(403).json({ error: 'Pas ta réponse' }); }
   db.prepare('INSERT INTO docs(col,id,data,by,at) VALUES(?,?,?,?,?) ON CONFLICT(col,id) DO UPDATE SET data=excluded.data, at=excluded.at')
     .run(col, id, JSON.stringify(doc), doc.by, doc.at);
@@ -243,7 +270,7 @@ app.delete('/api/c/:col/:id', auth, (req, res) => {
   const { col, id } = req.params;
   if (!COLS.includes(col)) return res.status(400).json({ error: 'Collection inconnue' });
   if (col === 'trackers') { const p = getDoc(col, id); if (p && p.by === req.user.id) for (const l of allDocs('tlogs')) if (l.tracker === id) db.prepare('DELETE FROM docs WHERE col=? AND id=?').run('tlogs', l.id); }
-  if (col === 'scheduled' || col === 'cycles' || col === 'trackers' || col === 'tlogs') { const p = getDoc(col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
+  if (col === 'scheduled' || col === 'cycles' || col === 'trackers' || col === 'tlogs' || col === 'capsules') { const p = getDoc(col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
   db.prepare('DELETE FROM docs WHERE col=? AND id=?').run(col, id);
   bump();
   res.json({ ok: true, rev });
@@ -333,6 +360,10 @@ async function daily() {
     await pushTo(u.id, { title: 'Cycle 🌸', body: 'Tes règles sont estimées dans 2 jours.', tag: 'cycle', url: '/#cycle' }).catch(() => {});
     if ((getDoc('profiles', u.id) || {}).shareCycle === true) for (const o of us) if (o.id !== u.id) await pushTo(o.id, { title: 'Cycle 🌸', body: `Les règles de ${u.name} sont estimées dans 2 jours.`, tag: 'cycle', url: '/#cycle' }).catch(() => {});
   }
+  for (const c of allDocs('chores')) if (c.next === t && c.turn) await pushTo(c.turn, { title: 'À faire aujourd\'hui 🧹', body: `${c.title} : c'est ton tour`, tag: 'tache-' + c.id, url: '/#taches' }).catch(() => {});
+  for (const c of allDocs('capsules')) if (c.openAt === t) await all({ title: 'Une capsule s\'ouvre 💊', body: c.title, tag: 'capsule', url: '/#capsules' });
+  if (new Date(t + 'T12:00:00Z').getUTCDay() === 1 && QUESTIONS.defis) { const L = QUESTIONS.defis, k = Math.floor((Date.parse(t) - Date.parse('2026-01-05')) / (7 * 864e5)); await all({ title: 'Défi de la semaine 🏅', body: L[((k % L.length) + L.length) % L.length], tag: 'defi', url: '/#defi' }); }
+  if (t.slice(8) === '01') await all({ title: 'Votre bilan du mois est prêt 📅', body: 'Jours ensemble, mots échangés, photos : le récap vous attend.', tag: 'bilan', url: '/#bilan' });
   for (const c of allDocs('countdowns')) if (c.date === t) await all({ title: 'C\'est aujourd\'hui ! 🎉', body: c.title, tag: 'cd-' + c.id, url: '/#rebours' });
 }
 setInterval(() => daily().catch(e => console.error(e)), 5 * 60e3);

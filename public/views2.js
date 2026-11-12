@@ -1,16 +1,5 @@
 'use strict';
 /* Nous — vues secondaires : petits mots, question du jour, photos, documents, listes, envies, comptes à rebours, roue, réglages. */
-VIEWS.plus = () => {
-  const t = today(), me = S.me.id;
-  const tiles = [
-    ['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['photos', '📸', 'Photos'],
-    ['docs', '🗂️', 'Documents'], ['listes', '✅', 'Listes', all('items').filter(i => !i.done).length], ['envies', '🎁', 'Envies'],
-    ['suivi', '📊', 'Suivi'], ['cycle', '🌸', 'Cycle'], ['histoire', '📖', 'Notre histoire'], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['rebours', '⏳', 'Comptes à rebours'],
-    ['roue', '🎡', 'La roue'], ['reglages', '⚙️', 'Réglages']
-  ];
-  return [head('Plus'), h('div', { class: 'tiles' }, tiles.map(([id, e, lab, n]) => h('button', { class: 'glass tile', onclick: () => go(id) }, h('span', { class: 'e' }, e), lab, n ? h('span', { class: 'badge' }, n) : null)))];
-};
-
 /* ----- petits mots ----- */
 VIEWS.mots = () => {
   const notes = all('notes').sort((a, b) => b.at - a.at).slice(0, 80);

@@ -15,6 +15,28 @@ window.nousSeed = function () {
   // réglages
   const ago = (y, m, d) => { const x = pd(t); x.setFullYear(x.getFullYear() - y); x.setMonth(x.getMonth() - m); x.setDate(x.getDate() - d); return iso(x); };
   add('profiles', { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 1200, since: ago(1, 8, 3) });
+  // quotidien et jeux
+  const mon = addDays(t, -((pd(t).getDay() + 6) % 7));
+  add('meals', { id: t + '_soir', date: t, slot: 'soir', text: 'Risotto aux champignons', who: 'both', ing: 'Riz arborio\nChampignons de Paris\nParmesan\nBouillon de légumes' });
+  add('meals', { id: addDays(t, 1) + '_midi', date: addDays(t, 1), slot: 'midi', text: 'Restes de risotto', who: M });
+  add('meals', { id: addDays(t, 2) + '_soir', date: addDays(t, 2), slot: 'soir', text: 'Wraps poulet avocat', who: 'both', ing: 'Galettes de blé\nAvocats\nBlanc de poulet' }, G);
+  add('chores', { id: 'ch1', title: 'Lessive', emoji: '🧺', every: 5, next: t, turn: M, last: addDays(t, -5) });
+  add('chores', { id: 'ch2', title: 'Poubelles', emoji: '🗑️', every: 3, next: addDays(t, 1), turn: G });
+  add('chores', { id: 'ch3', title: 'Aspirateur', emoji: '🧹', every: 7, next: addDays(t, 4), turn: M });
+  [[M, 2], [G, 3], [G, 6], [M, 8], [G, 9]].forEach(([u, a]) => add('chorelog', { chore: 'ch' + (1 + a % 3), user: u, date: addDays(t, -a).slice(0, 7) === ym ? addDays(t, -a) : ym + '-01' }, u, a * 24));
+  add('pots', { id: 'pot1', title: 'Vacances d\'été', emoji: '🏝️', goal: 1500 });
+  [[M, 200, 40], [G, 150, 38], [M, 100, 12], [G, 120, 5]].forEach(([u, amount, a]) => add('potins', { pot: 'pot1', user: u, amount, date: addDays(t, -a) }, u, a * 24));
+  add('trips', { who: M, from: 'Paris', to: 'Bordeaux', date: addDays(mon, 7), dep: '07:04', arr: '09:12', ref: 'Voiture 12 · place 45' });
+  add('trips', { who: M, from: 'Bordeaux', to: 'Paris', date: addDays(mon, 9), dep: '18:46', arr: '20:54' });
+  add('infos', { label: 'Pointure de Morgane', value: '38', emoji: '👟' }); add('infos', { label: 'Digicode de l\'immeuble', value: 'À renseigner', emoji: '🚪' }); add('infos', { label: 'Taille de bague', value: '52', emoji: '💍' }, G);
+  add('disputes', { title: 'Qui avait promis de réserver le resto ?', sides: { [M]: 'J\'avais dit que je regarderais, pas que je réserverais.', [G]: 'Tu as dit « je m\'en occupe », mot pour mot.' }, winner: G, judgedAt: now - 3 * 864e5 }, G, 80);
+  add('defis', { id: addDays(mon, -7), week: addDays(mon, -7), done: { [M]: now - 6 * 864e5, [G]: now - 5 * 864e5 } });
+  add('quiz', { about: G, q: 'Mon dessert préféré ?', answer: 'Le tiramisu' }, G, 5);
+  add('quiz', { about: M, q: 'Ce que je commande toujours au resto ?', answer: 'Un burger', guess: 'Un burger avec des frites', ok: true }, M, 60);
+  add('capsules', { title: 'À ouvrir pour notre emménagement', text: 'Si tu lis ça, c\'est qu\'on a enfin nos clés.', openAt: addDays(t, 60) }, G, 100);
+  add('pokes', { id: t + '_' + G, date: t, user: G, n: 2, last: now - 3600e3 }, G);
+  add('songs', { title: 'Le morceau du trajet retour', artist: 'À remplacer par le vrai', why: 'Il passait dans la voiture en rentrant de Biarritz.' }, G, 30);
+  add('songs', { title: 'Celui du premier concert', artist: 'À remplacer par le vrai', why: 'On l\'a hurlé tous les deux.' }, M, 200);
   // compteurs
   add('trackers', { id: 'tk_cafe', name: 'Cafés', emoji: '☕', vis: 'shared', goalType: 'max', goal: 4 });
   add('trackers', { id: 'tk_sport', name: 'Sport', emoji: '🏃', vis: 'both', goalType: 'none' }, G);

@@ -82,6 +82,8 @@ VIEWS.home = () => {
         h('p', { class: tg ? 'mid grow' : 'muted grow' }, !tg ? 'Indiquez vos villes dans l\'agenda pour voir quand vous vous retrouvez.'
           : tg.in === 0 ? `Ensemble à ${tg.place}${tg.end > t ? ' jusqu\'à ' + fmtD(tg.end, { weekday: 'long', day: 'numeric', month: 'long' }) : ' aujourd\'hui'}`
             : `Retrouvailles à ${tg.place}, ${fmtD(tg.date, { weekday: 'long', day: 'numeric', month: 'long' })}`))),
+    pokeCard(),
+    todayCard(),
     moodCard(),
     h('button', { class: 'glass card tap', onclick: () => go('question') }, eyebrow('Question du jour', h('span', { class: 'pill', c: qst[1] }, qst[0])), h('p', { class: 'mid' }, qText(q))),
     h('div', { class: 'grid2' },
@@ -348,6 +350,7 @@ function flatSheet(id) {
       h('div', { class: 'f' }, h('label', { htmlFor: 'f_op' }, 'Mon avis'), h('textarea', { class: 'inp', id: 'f_op', placeholder: 'Ce que j\'en pense…', value: (f.opinions || {})[me] || '', onchange: e => save({ opinions: { ...(f.opinions || {}), [me]: e.target.value } }) })),
       ((f.ratings || {})[o.id] || (f.opinions || {})[o.id]) ? h('div', { class: 'row', style: { alignItems: 'flex-start' } }, avatar(o.id, true), h('div', { class: 'grow' }, h('div', { class: 'b' }, `${o.name} ${(f.ratings || {})[o.id] ? '★'.repeat(f.ratings[o.id]) : ''}`), h('div', { class: 'small muted' }, (f.opinions || {})[o.id] || 'Pas encore d\'avis écrit'))) : h('p', { class: 'small faint' }, `${o.name} n'a pas encore donné son avis.`),
       f.notes && h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Notes'), h('p', { style: { whiteSpace: 'pre-wrap' } }, f.notes)),
+      ...flatExtras(f, save),
       h('hr', { class: 'sep' }),
       h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Suivi'), h('div', { class: 'tl' }, (f.history || []).slice().reverse().map(x => h('div', { c: x.s === 'relance' ? 'var(--warn)' : stOf(x.s)[2] }, h('span', { class: 'b' }, x.s === 'relance' ? 'Relance' : stOf(x.s)[1]), h('span', { class: 'muted small' }, ` · ${nameOf(x.by)} · ${fmtT(x.at)}`))))),
       h('div', { class: 'frow' }, h('button', { class: 'btn', onclick: addPhotos }, '📷 Photos'), h('button', { class: 'btn', onclick: () => { ctl.close(); flatForm(f); } }, 'Modifier')),
@@ -359,8 +362,8 @@ function compareSheet() {
   const fs = all('flats').filter(f => f.status !== 'refuse').sort((a, b) => flatTotal(a) - flatTotal(b)), bud = +couple().budget || 0;
   const avg = f => { const r = Object.values(f.ratings || {}).filter(Boolean); return r.length ? (r.reduce((a, b) => a + b, 0) / r.length).toFixed(1).replace('.', ',') + ' ★' : '–'; };
   openSheet('Comparer', () => fs.length ? h('div', { class: 'scrollx' }, h('table', { class: 'cmp' },
-    h('thead', null, h('tr', null, ['Appart', 'Loyer CC', 'm²', '€/m²', ...S.users.map(u => '🚇 ' + u.name), 'Note', 'Étape'].map(t => h('th', null, t)))),
-    h('tbody', null, fs.map(f => { const t = flatTotal(f); return h('tr', null, h('td', { class: 'b' }, f.title), h('td', { class: bud && t > bud ? 'bad b' : 'b' }, t ? eur0(t) : '–'), h('td', null, f.surface || '–'), h('td', null, f.surface && t ? Math.round(t / f.surface) : '–'), ...S.users.map(u => h('td', null, (f.commute || {})[u.id] != null ? f.commute[u.id] + ' min' : '–')), h('td', null, avg(f)), h('td', null, stOf(f.status)[1])); }))))
+    h('thead', null, h('tr', null, ['Appart', 'Loyer CC', 'm²', '€/m²', ...S.users.map(u => '🚇 ' + u.name), 'Note', 'Checklist', 'Étape'].map(t => h('th', null, t)))),
+    h('tbody', null, fs.map(f => { const t = flatTotal(f); return h('tr', null, h('td', { class: 'b' }, f.title), h('td', { class: bud && t > bud ? 'bad b' : 'b' }, t ? eur0(t) : '–'), h('td', null, f.surface || '–'), h('td', null, f.surface && t ? Math.round(t / f.surface) : '–'), ...S.users.map(u => h('td', null, (f.commute || {})[u.id] != null ? f.commute[u.id] + ' min' : '–')), h('td', null, avg(f)), h('td', null, checkScore(f)), h('td', null, stOf(f.status)[1])); }))))
     : h('div', { class: 'empty' }, 'Ajoutez des apparts pour les comparer.'));
 }
 VIEWS.appart = () => {
