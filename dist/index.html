@@ -464,10 +464,20 @@ async function api(method, url, body) {
   if (!r.ok) throw new Error(j.error || 'Erreur serveur');
   return j;
 }
+const MYV = (D.querySelector('meta[name="nous-version"]') || {}).content || '';
+// Si le serveur annonce une version plus récente que celle chargée, on recharge (une seule fois par version).
+function checkVersion(v) {
+  if (!v || !MYV || v === MYV) return;
+  let done = ''; try { done = sessionStorage.getItem('nous-reload'); } catch (e) { }
+  if (done === v || $('#sheets').children.length) return;
+  try { sessionStorage.setItem('nous-reload', v); } catch (e) { return; }
+  const go2 = () => location.reload();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
+}
 function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; }
 const Remote = {
   async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
-  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); if (j.same) return false; applySync(j); return true; },
+  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if (j.same) return false; applySync(j); return true; },
   login: (l, p) => api('POST', '/api/login', { login: l, password: p }),
   logout: () => api('POST', '/api/logout', {}),
   put: (col, doc) => api('PUT', `/api/c/${col}/${encodeURIComponent(doc.id)}`, doc).then(() => { S.rev = -1; }),
@@ -1401,7 +1411,8 @@ VIEWS.reglages = () => {
       !S.demo && h('button', { class: 'btn full', onclick: () => formSheet({ title: 'Changer de mot de passe', submit: 'Changer', fields: [{ k: 'old', label: 'Mot de passe actuel', type: 'password', auto: 'current-password', required: true }, { k: 'next', label: 'Nouveau (10 caractères minimum)', type: 'password', auto: 'new-password', required: true }], onSubmit: async v => { await api('POST', '/api/password', v); toast('Mot de passe changé'); } }) }, 'Changer de mot de passe'),
       S.demo && h('button', { class: 'btn full', onclick: async () => { await B.login(other().id); await B.boot(); toast(`Tu vois l'app comme ${S.me.name}`); go('home'); } }, `Voir l'app comme ${other().name}`),
       S.demo && h('button', { class: 'btn full', onclick: async () => { if (await confirmSheet('Remettre la démo à zéro ?', 'Les données d\'exemple reviennent.', 'Remettre à zéro', true)) { try { localStorage.removeItem('nous-demo-v1'); } catch (e) { } Demo.raw = null; await B.boot(); go('home'); } } }, 'Réinitialiser la démo'),
-      h('button', { class: 'btn danger full', onclick: async () => { try { await B.logout(); } catch (e) { } S.me = null; showLogin(); } }, 'Se déconnecter'))
+      h('button', { class: 'btn danger full', onclick: async () => { try { await B.logout(); } catch (e) { } S.me = null; showLogin(); } }, 'Se déconnecter'),
+      MYV && h('p', { class: 'tiny faint center' }, 'Version ' + MYV))
   ];
 };
 

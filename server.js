@@ -172,7 +172,7 @@ function viewFor(col, doc, me, mine, sharers, hiddenT) {
   return doc;
 }
 app.get('/api/sync', auth, (req, res) => {
-  if (+req.query.rev === rev) return res.json({ same: true, rev });
+  if (+req.query.rev === rev) return res.json({ same: true, rev, v: VERSION });
   const me = req.user.id, cols = {};
   const rows = db.prepare('SELECT col, data FROM docs').all();
   const parsed = rows.map(r => [r.col, JSON.parse(r.data)]);
@@ -181,7 +181,7 @@ app.get('/api/sync', auth, (req, res) => {
   const hiddenT = new Set(parsed.filter(([c, d]) => c === 'trackers' && d.by !== me && (d.vis || 'private') === 'private').map(([, d]) => d.id));
   const sharers = new Set(parsed.filter(([c, d]) => c === 'profiles' && d.shareCycle === true).map(([, d]) => d.id));
   for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers, hiddenT); if (v) cols[c][d.id] = v; }
-  res.json({ rev, me: req.user, users: users(), cols, vapid: vapid.publicKey, today: today() });
+  res.json({ rev, me: req.user, users: users(), cols, vapid: vapid.publicKey, today: today(), v: VERSION });
 });
 
 const lastPing = new Map();
@@ -355,10 +355,18 @@ function deliverScheduled() {
 setInterval(() => { try { deliverScheduled(); } catch (e) { console.error(e); } }, 20e3);
 
 /* ---------- fichiers statiques ---------- */
-app.use(express.static(path.join(__dirname, 'public'), {
-  setHeaders: (res, p) => { res.set('Cache-Control', /sw\.js$|\.html$/.test(p) ? 'no-cache' : 'public, max-age=3600'); }
+// Chaque version de l'app a une empreinte : les adresses des scripts changent à chaque mise à jour,
+// donc un navigateur ne peut pas rester bloqué sur d'anciens fichiers.
+const PUB = path.join(__dirname, 'public');
+const VERSION = (() => { const hsh = crypto.createHash('sha1'); for (const f of fs.readdirSync(PUB).sort()) hsh.update(f).update(fs.readFileSync(path.join(PUB, f))); return hsh.digest('hex').slice(0, 10); })();
+const INDEX = fs.readFileSync(path.join(PUB, 'index.html'), 'utf8')
+  .replace(/(href|src)="\/([\w.-]+\.(?:js|css))"/g, `$1="/$2?v=${VERSION}"`)
+  .replace('</head>', `<meta name="nous-version" content="${VERSION}">\n</head>`);
+app.get(['/', '/index.html'], (req, res) => res.set('Cache-Control', 'no-cache').type('html').send(INDEX));
+app.use(express.static(PUB, {
+  setHeaders: (res, p) => { res.set('Cache-Control', /\.(png|jpg|svg|ico)$/.test(p) ? 'public, max-age=86400' : 'no-cache'); }
 }));
 app.use('/api', (req, res) => res.status(404).json({ error: 'Introuvable' }));
 app.use((err, req, res, next) => { console.error(err); res.status(err.status || 500).json({ error: 'Erreur serveur' }); });
 
-initUsers().then(() => app.listen(PORT, () => console.log(`[nous] en écoute sur le port ${PORT}`)));
+initUsers().then(() => app.listen(PORT, () => console.log(`[nous] version ${VERSION}, en écoute sur le port ${PORT}`)));

@@ -247,6 +247,7 @@ VIEWS.reglages = () => {
       !S.demo && h('button', { class: 'btn full', onclick: () => formSheet({ title: 'Changer de mot de passe', submit: 'Changer', fields: [{ k: 'old', label: 'Mot de passe actuel', type: 'password', auto: 'current-password', required: true }, { k: 'next', label: 'Nouveau (10 caractères minimum)', type: 'password', auto: 'new-password', required: true }], onSubmit: async v => { await api('POST', '/api/password', v); toast('Mot de passe changé'); } }) }, 'Changer de mot de passe'),
       S.demo && h('button', { class: 'btn full', onclick: async () => { await B.login(other().id); await B.boot(); toast(`Tu vois l'app comme ${S.me.name}`); go('home'); } }, `Voir l'app comme ${other().name}`),
       S.demo && h('button', { class: 'btn full', onclick: async () => { if (await confirmSheet('Remettre la démo à zéro ?', 'Les données d\'exemple reviennent.', 'Remettre à zéro', true)) { try { localStorage.removeItem('nous-demo-v1'); } catch (e) { } Demo.raw = null; await B.boot(); go('home'); } } }, 'Réinitialiser la démo'),
-      h('button', { class: 'btn danger full', onclick: async () => { try { await B.logout(); } catch (e) { } S.me = null; showLogin(); } }, 'Se déconnecter'))
+      h('button', { class: 'btn danger full', onclick: async () => { try { await B.logout(); } catch (e) { } S.me = null; showLogin(); } }, 'Se déconnecter'),
+      MYV && h('p', { class: 'tiny faint center' }, 'Version ' + MYV))
   ];
 };

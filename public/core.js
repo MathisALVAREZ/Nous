@@ -73,10 +73,20 @@ async function api(method, url, body) {
   if (!r.ok) throw new Error(j.error || 'Erreur serveur');
   return j;
 }
+const MYV = (D.querySelector('meta[name="nous-version"]') || {}).content || '';
+// Si le serveur annonce une version plus récente que celle chargée, on recharge (une seule fois par version).
+function checkVersion(v) {
+  if (!v || !MYV || v === MYV) return;
+  let done = ''; try { done = sessionStorage.getItem('nous-reload'); } catch (e) { }
+  if (done === v || $('#sheets').children.length) return;
+  try { sessionStorage.setItem('nous-reload', v); } catch (e) { return; }
+  const go2 = () => location.reload();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
+}
 function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; }
 const Remote = {
   async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
-  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); if (j.same) return false; applySync(j); return true; },
+  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if (j.same) return false; applySync(j); return true; },
   login: (l, p) => api('POST', '/api/login', { login: l, password: p }),
   logout: () => api('POST', '/api/logout', {}),
   put: (col, doc) => api('PUT', `/api/c/${col}/${encodeURIComponent(doc.id)}`, doc).then(() => { S.rev = -1; }),
