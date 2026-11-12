@@ -17,6 +17,10 @@ notre histoire, bons à offrir et mots programmés.
    - iPhone : Partager → « Sur l'écran d'accueil »,
    - dans l'app : Plus → Réglages → Notifications → « Activer », et changer le mot de passe.
 
+**VPS avec Traefik** (cas du VPS actuel) : après l'étape 3, ignorer l'erreur certbot et lancer `bash deploy/traefik.sh`.
+Le script reprend le réseau, le point d'entrée et le résolveur de certificats d'un service déjà en place,
+puis branche Nous dessus. La configuration Nginx de `deploy/` ne sert alors pas.
+
 Sauvegarde : ajouter `deploy/backup.sh` au cron (voir l'en-tête du script).
 Mise à jour : remplacer les fichiers puis `docker compose up -d --build`.
 
