@@ -2,7 +2,7 @@
 /* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
 const D = document;
 const $ = (s, r = D) => r.querySelector(s);
-const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled'];
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles'];
 const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
 let B = null; // stockage actif
 const VIEWS = {};
@@ -107,7 +107,8 @@ const Demo = {
         let v = d;
         if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
         if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
-        if (c === 'scheduled' && d.by !== me) continue; // un mot programmé reste secret jusqu'à l'heure
+        if (c === 'scheduled' && d.by !== me) continue;
+        if (c === 'cycles' && d.by !== me && !(this.raw.profiles[d.by] || {}).shareCycle) continue; // suivi privé tant qu'il n'est pas partagé // un mot programmé reste secret jusqu'à l'heure
         cols[c][d.id] = v;
       }
     }

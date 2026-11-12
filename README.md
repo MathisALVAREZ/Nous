@@ -2,7 +2,7 @@
 
 L'app à deux : agenda et villes, comptes partagés, recherche d'appart, petits mots avec notifications,
 question du jour, photos, documents, listes, envies, comptes à rebours, roue, humeur du jour,
-notre histoire, bons à offrir et mots programmés.
+notre histoire, bons à offrir, mots programmés et suivi du cycle (privé, partagé seulement si la personne l'active).
 
 ## Mise en ligne sur le VPS (morgane.kratox.fr)
 

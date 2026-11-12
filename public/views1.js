@@ -98,6 +98,7 @@ VIEWS.home = () => {
       h('div', { class: 'chips' },
         visits[0] && h('span', { class: 'pill', c: stOf('visite')[2] }, `Visite ${rel(visits[0].visitAt.slice(0, 10))}`),
         relances.length ? h('span', { class: 'pill', c: 'var(--bad)' }, `${relances.length} relance${relances.length > 1 ? 's' : ''} à faire`) : null)) : null,
+    cycleCard(),
     flashCard(),
     cd && h('button', { class: 'glass card tap', onclick: () => go('rebours') }, h('div', { class: 'cd' }, h('div', { class: 'j' }, 'J-' + daysBetween(t, cd.date)), h('div', { class: 'grow' }, h('div', { class: 'eyebrow' }, 'Compte à rebours'), h('div', { class: 'mid' }, (cd.emoji || '🎉') + ' ' + cd.title), h('div', { class: 'small muted' }, cap(fmtD(cd.date, { weekday: 'long', day: 'numeric', month: 'long' })))))),
     photos.length ? h('button', { class: 'glass card tap', onclick: () => go('photos') }, h('div', { class: 'eyebrow' }, 'Dernières photos'), h('div', { class: 'strip' }, photos.map(p => h('img', { src: B.fileUrl(p.fileId), alt: p.caption || 'Photo', loading: 'lazy' })))) : null
@@ -173,6 +174,7 @@ function eventRow(e) {
 VIEWS.agenda = () => {
   const c = S.cal || (S.cal = { ym: today().slice(0, 7), sel: today() });
   const [y, m] = c.ym.split('-').map(Number), first = new Date(y, m - 1, 1), start = addDays(iso(first), -((first.getDay() + 6) % 7)), t = today();
+  const cyc = S.users.map(u => cycleDays(u.id)), hasCyc = cyc.some(c => c.real.size);
   const byDay = {}; for (const e of all('events')) (byDay[e.date] = byDay[e.date] || []).push(e);
   const shift = n => { const d = new Date(y, m - 1 + n, 1); S.cal = { ym: iso(d).slice(0, 7), sel: iso(d).slice(0, 7) === t.slice(0, 7) ? t : iso(d) }; render(true); };
   const cells = [];
@@ -180,6 +182,7 @@ VIEWS.agenda = () => {
     const d = addDays(start, i); if (i === 35 && d.slice(0, 7) !== c.ym) break;
     const evs = (byDay[d] || []).slice(0, 3);
     cells.push(h('button', { class: 'day' + (d.slice(0, 7) !== c.ym ? ' out' : '') + (d === t ? ' today' : '') + (d === c.sel ? ' sel' : ''), 'aria-label': fmtD(d, { weekday: 'long', day: 'numeric', month: 'long' }), onclick: () => { S.cal.sel = d; if (d.slice(0, 7) !== c.ym) S.cal.ym = d.slice(0, 7); render(true); } },
+      cyc.some(c => c.real.has(d)) ? h('i', { class: 'per' }) : cyc.some(c => c.est.has(d)) ? h('i', { class: 'per est' }) : null,
       h('span', { class: 'dn' }, +d.slice(8)),
       h('span', { class: 'bar' }, S.users.map(u => { const p = placeOf(u.id, d); return h('i', { c: p ? pcolor(p) : null }); })),
       h('span', { class: 'evs' }, evs.map(e => h('i', { c: e.who === 'both' ? 'var(--ink)' : ucolor(e.who) })))));
@@ -196,7 +199,7 @@ VIEWS.agenda = () => {
     sec(
       h('div', { class: 'row between' }, h('button', { class: 'ibtn', 'aria-label': 'Mois précédent', onclick: () => shift(-1) }, icon('back')), h('div', { class: 'mid' }, cap(fmtD(iso(first), { month: 'long', year: 'numeric' }))), h('button', { class: 'ibtn', 'aria-label': 'Mois suivant', onclick: () => shift(1) }, icon('next'))),
       h('div', { class: 'cal' }, ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => h('div', { class: 'dow' }, d)), cells),
-      h('div', { class: 'legend' }, h('span', null, `Barre : ${S.users.map(u => u.name).join(' | ')}`), usedPlaces.map(p => h('span', null, h('i', { class: 'dot', c: pcolor(p) }), p)))),
+      h('div', { class: 'legend' }, h('span', null, `Barre : ${S.users.map(u => u.name).join(' | ')}`), usedPlaces.map(p => h('span', null, h('i', { class: 'dot', c: pcolor(p) }), p)), hasCyc && h('span', null, h('i', { class: 'dot', c: '#ff4d6d' }), 'Règles (contour : estimation)'))),
     sec(eyebrow(cap(fmtD(sel, { weekday: 'long', day: 'numeric', month: 'long' })), h('span', { class: 'small faint' }, cap(rel(sel)))),
       h('div', { class: 'where' }, S.users.map(u => { const p = placeOf(u.id, sel); return h('button', { onclick: () => placeSheet(u.id, sel) }, avatar(u.id, true), h('div', { class: 'grow small' }, h('div', { class: 'ell' }, u.name), placeTag(p, 'À préciser'))); })),
       evs.length ? h('div', { class: 'list' }, evs.map(eventRow)) : h('div', { class: 'empty' }, 'Rien de prévu ce jour-là.'),

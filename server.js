@@ -20,7 +20,7 @@ const TZ = 'Europe/Paris';
 fs.mkdirSync(FILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
-  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled'];
+  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles'];
 
 /* ---------- base ---------- */
 const db = new Database(path.join(DATA, 'nous.db'));
@@ -162,10 +162,11 @@ app.post('/api/password', auth, async (req, res) => {
 
 /* ---------- données ---------- */
 // Ce que chacun a le droit de voir : pas la réservation de ses propres envies, pas la réponse de l'autre avant d'avoir répondu.
-function viewFor(col, doc, me, mine) {
+function viewFor(col, doc, me, mine, sharers) {
   if (col === 'wishes' && doc.owner === me) { const d = { ...doc }; delete d.reservedBy; return d; }
   if (col === 'answers' && doc.user !== me && !mine.has(doc.date)) return { id: doc.id, date: doc.date, user: doc.user, by: doc.by, at: doc.at, hidden: true };
-  if (col === 'scheduled' && doc.by !== me) return null; // un mot programmé reste secret jusqu'à l'heure
+  if (col === 'scheduled' && doc.by !== me) return null;
+  if (col === 'cycles' && doc.by !== me && !(sharers && sharers.has(doc.by))) return null; // suivi du cycle : privé tant que son auteur ne le partage pas // un mot programmé reste secret jusqu'à l'heure
   return doc;
 }
 app.get('/api/sync', auth, (req, res) => {
@@ -175,7 +176,8 @@ app.get('/api/sync', auth, (req, res) => {
   const parsed = rows.map(r => [r.col, JSON.parse(r.data)]);
   const mine = new Set(parsed.filter(([c, d]) => c === 'answers' && d.user === me).map(([, d]) => d.date));
   for (const c of COLS) cols[c] = {};
-  for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine); if (v) cols[c][d.id] = v; }
+  const sharers = new Set(parsed.filter(([c, d]) => c === 'profiles' && d.shareCycle === true).map(([, d]) => d.id));
+  for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers); if (v) cols[c][d.id] = v; }
   res.json({ rev, me: req.user, users: users(), cols, vapid: vapid.publicKey, today: today() });
 });
 
@@ -204,6 +206,7 @@ function notify(col, doc, prev, user) {
     });
   }
   if (col === 'moods' && (!prev || prev.emoji !== doc.emoji) && cooled('mood:' + user.id, 20 * 60e3)) return send({ title: `Humeur de ${n}`, body: `${doc.emoji} ${doc.text || ''}`.trim(), tag: 'humeur', url: '/' });
+  if (col === 'cycles' && !prev && (getDoc('profiles', user.id) || {}).shareCycle === true && doc.start >= today(new Date(Date.now() - 2 * 864e5))) return send({ title: 'Cycle 🌸', body: `${n} a indiqué le début de ses règles. C'est le moment d'être aux petits soins.`, tag: 'cycle', url: '/#cycle' }, true);
   if (col === 'coupons') {
     if (!prev) return send({ title: 'Un bon pour toi 🎟️', body: `${n} t'offre : ${doc.title}`, tag: 'bon-' + doc.id, url: '/#bons' }, true);
     if (!prev.usedAt && doc.usedAt) return send({ title: 'Bon utilisé 🎟️', body: `${n} utilise son bon : ${doc.title}`, tag: 'bon-' + doc.id, url: '/#bons' }, true);
@@ -219,7 +222,8 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
   const doc = { ...(req.body || {}), id, by: prev ? prev.by : req.user.id, at: Date.now() };
   delete doc.hidden;
   if (col === 'wishes' && prev && prev.owner === req.user.id) { if (prev.reservedBy) doc.reservedBy = prev.reservedBy; else delete doc.reservedBy; }
-  if ((col === 'scheduled' || col === 'moods') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
+  if (col === 'profiles' && id !== '_couple' && id !== req.user.id) return res.status(403).json({ error: 'Pas ton profil' });
+  if ((col === 'scheduled' || col === 'moods' || col === 'cycles') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
   if (col === 'answers') { doc.user = req.user.id; if (prev && prev.user !== req.user.id) return res.status(403).json({ error: 'Pas ta réponse' }); }
   db.prepare('INSERT INTO docs(col,id,data,by,at) VALUES(?,?,?,?,?) ON CONFLICT(col,id) DO UPDATE SET data=excluded.data, at=excluded.at')
     .run(col, id, JSON.stringify(doc), doc.by, doc.at);
@@ -230,7 +234,7 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
 app.delete('/api/c/:col/:id', auth, (req, res) => {
   const { col, id } = req.params;
   if (!COLS.includes(col)) return res.status(400).json({ error: 'Collection inconnue' });
-  if (col === 'scheduled') { const p = getDoc(col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
+  if (col === 'scheduled' || col === 'cycles') { const p = getDoc(col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
   db.prepare('DELETE FROM docs WHERE col=? AND id=?').run(col, id);
   bump();
   res.json({ ok: true, rev });
@@ -308,6 +312,18 @@ async function daily() {
   for (const m of allDocs('milestones')) if (m.date && m.date.slice(4) === t.slice(4) && m.date < t) { const n = +t.slice(0, 4) - +m.date.slice(0, 4); await all({ title: `Il y a ${n} an${n > 1 ? 's' : ''} aujourd'hui ✨`, body: m.title, tag: 'ms-' + m.id, url: '/#histoire' }); }
   const since = (getDoc('profiles', '_couple') || {}).since;
   if (since && since.slice(4) === t.slice(4) && since < t) { const n = +t.slice(0, 4) - +since.slice(0, 4); await all({ title: `${n} an${n > 1 ? 's' : ''} ensemble 🥂`, body: 'Joyeux anniversaire à vous deux.', tag: 'anniv', url: '/#histoire' }); }
+  // règles estimées dans 2 jours : rappel à la personne, et à l'autre seulement si le suivi est partagé
+  const addD = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+  const diff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+  const cyc = allDocs('cycles');
+  for (const u of us) {
+    const starts = cyc.filter(c => c.by === u.id && c.start).map(c => c.start).sort(); if (!starts.length) continue;
+    const gaps = []; for (let i = 1; i < starts.length; i++) { const g = diff(starts[i - 1], starts[i]); if (g >= 15 && g <= 60) gaps.push(g); }
+    const last6 = gaps.slice(-6), avg = last6.length ? Math.round(last6.reduce((a, b) => a + b, 0) / last6.length) : 28;
+    if (addD(starts[starts.length - 1], avg) !== addD(t, 2)) continue;
+    await pushTo(u.id, { title: 'Cycle 🌸', body: 'Tes règles sont estimées dans 2 jours.', tag: 'cycle', url: '/#cycle' }).catch(() => {});
+    if ((getDoc('profiles', u.id) || {}).shareCycle === true) for (const o of us) if (o.id !== u.id) await pushTo(o.id, { title: 'Cycle 🌸', body: `Les règles de ${u.name} sont estimées dans 2 jours.`, tag: 'cycle', url: '/#cycle' }).catch(() => {});
+  }
   for (const c of allDocs('countdowns')) if (c.date === t) await all({ title: 'C\'est aujourd\'hui ! 🎉', body: c.title, tag: 'cd-' + c.id, url: '/#rebours' });
 }
 setInterval(() => daily().catch(e => console.error(e)), 5 * 60e3);

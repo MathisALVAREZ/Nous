@@ -197,6 +197,8 @@ select.inp option { background: Canvas; color: CanvasText; }
 .day .bar i:not([style]) { opacity: .35; }
 .day .evs { display: flex; gap: 2px; height: 5px; }
 .day .evs i { width: 5px; height: 5px; border-radius: 50%; background: var(--c, var(--ink2)); }
+.day .per { position: absolute; top: 5px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #ff4d6d; }
+.day .per.est { background: none; border: 1.5px solid #ff4d6d; }
 .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink2); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 
@@ -386,7 +388,7 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 /* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
 const D = document;
 const $ = (s, r = D) => r.querySelector(s);
-const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled'];
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles'];
 const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
 let B = null; // stockage actif
 const VIEWS = {};
@@ -491,7 +493,8 @@ const Demo = {
         let v = d;
         if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
         if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
-        if (c === 'scheduled' && d.by !== me) continue; // un mot programmé reste secret jusqu'à l'heure
+        if (c === 'scheduled' && d.by !== me) continue;
+        if (c === 'cycles' && d.by !== me && !(this.raw.profiles[d.by] || {}).shareCycle) continue; // suivi privé tant qu'il n'est pas partagé // un mot programmé reste secret jusqu'à l'heure
         cols[c][d.id] = v;
       }
     }
@@ -850,6 +853,7 @@ VIEWS.home = () => {
       h('div', { class: 'chips' },
         visits[0] && h('span', { class: 'pill', c: stOf('visite')[2] }, `Visite ${rel(visits[0].visitAt.slice(0, 10))}`),
         relances.length ? h('span', { class: 'pill', c: 'var(--bad)' }, `${relances.length} relance${relances.length > 1 ? 's' : ''} à faire`) : null)) : null,
+    cycleCard(),
     flashCard(),
     cd && h('button', { class: 'glass card tap', onclick: () => go('rebours') }, h('div', { class: 'cd' }, h('div', { class: 'j' }, 'J-' + daysBetween(t, cd.date)), h('div', { class: 'grow' }, h('div', { class: 'eyebrow' }, 'Compte à rebours'), h('div', { class: 'mid' }, (cd.emoji || '🎉') + ' ' + cd.title), h('div', { class: 'small muted' }, cap(fmtD(cd.date, { weekday: 'long', day: 'numeric', month: 'long' })))))),
     photos.length ? h('button', { class: 'glass card tap', onclick: () => go('photos') }, h('div', { class: 'eyebrow' }, 'Dernières photos'), h('div', { class: 'strip' }, photos.map(p => h('img', { src: B.fileUrl(p.fileId), alt: p.caption || 'Photo', loading: 'lazy' })))) : null
@@ -925,6 +929,7 @@ function eventRow(e) {
 VIEWS.agenda = () => {
   const c = S.cal || (S.cal = { ym: today().slice(0, 7), sel: today() });
   const [y, m] = c.ym.split('-').map(Number), first = new Date(y, m - 1, 1), start = addDays(iso(first), -((first.getDay() + 6) % 7)), t = today();
+  const cyc = S.users.map(u => cycleDays(u.id)), hasCyc = cyc.some(c => c.real.size);
   const byDay = {}; for (const e of all('events')) (byDay[e.date] = byDay[e.date] || []).push(e);
   const shift = n => { const d = new Date(y, m - 1 + n, 1); S.cal = { ym: iso(d).slice(0, 7), sel: iso(d).slice(0, 7) === t.slice(0, 7) ? t : iso(d) }; render(true); };
   const cells = [];
@@ -932,6 +937,7 @@ VIEWS.agenda = () => {
     const d = addDays(start, i); if (i === 35 && d.slice(0, 7) !== c.ym) break;
     const evs = (byDay[d] || []).slice(0, 3);
     cells.push(h('button', { class: 'day' + (d.slice(0, 7) !== c.ym ? ' out' : '') + (d === t ? ' today' : '') + (d === c.sel ? ' sel' : ''), 'aria-label': fmtD(d, { weekday: 'long', day: 'numeric', month: 'long' }), onclick: () => { S.cal.sel = d; if (d.slice(0, 7) !== c.ym) S.cal.ym = d.slice(0, 7); render(true); } },
+      cyc.some(c => c.real.has(d)) ? h('i', { class: 'per' }) : cyc.some(c => c.est.has(d)) ? h('i', { class: 'per est' }) : null,
       h('span', { class: 'dn' }, +d.slice(8)),
       h('span', { class: 'bar' }, S.users.map(u => { const p = placeOf(u.id, d); return h('i', { c: p ? pcolor(p) : null }); })),
       h('span', { class: 'evs' }, evs.map(e => h('i', { c: e.who === 'both' ? 'var(--ink)' : ucolor(e.who) })))));
@@ -948,7 +954,7 @@ VIEWS.agenda = () => {
     sec(
       h('div', { class: 'row between' }, h('button', { class: 'ibtn', 'aria-label': 'Mois précédent', onclick: () => shift(-1) }, icon('back')), h('div', { class: 'mid' }, cap(fmtD(iso(first), { month: 'long', year: 'numeric' }))), h('button', { class: 'ibtn', 'aria-label': 'Mois suivant', onclick: () => shift(1) }, icon('next'))),
       h('div', { class: 'cal' }, ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => h('div', { class: 'dow' }, d)), cells),
-      h('div', { class: 'legend' }, h('span', null, `Barre : ${S.users.map(u => u.name).join(' | ')}`), usedPlaces.map(p => h('span', null, h('i', { class: 'dot', c: pcolor(p) }), p)))),
+      h('div', { class: 'legend' }, h('span', null, `Barre : ${S.users.map(u => u.name).join(' | ')}`), usedPlaces.map(p => h('span', null, h('i', { class: 'dot', c: pcolor(p) }), p)), hasCyc && h('span', null, h('i', { class: 'dot', c: '#ff4d6d' }), 'Règles (contour : estimation)'))),
     sec(eyebrow(cap(fmtD(sel, { weekday: 'long', day: 'numeric', month: 'long' })), h('span', { class: 'small faint' }, cap(rel(sel)))),
       h('div', { class: 'where' }, S.users.map(u => { const p = placeOf(u.id, sel); return h('button', { onclick: () => placeSheet(u.id, sel) }, avatar(u.id, true), h('div', { class: 'grow small' }, h('div', { class: 'ell' }, u.name), placeTag(p, 'À préciser'))); })),
       evs.length ? h('div', { class: 'list' }, evs.map(eventRow)) : h('div', { class: 'empty' }, 'Rien de prévu ce jour-là.'),
@@ -1146,7 +1152,7 @@ VIEWS.plus = () => {
   const tiles = [
     ['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['photos', '📸', 'Photos'],
     ['docs', '🗂️', 'Documents'], ['listes', '✅', 'Listes', all('items').filter(i => !i.done).length], ['envies', '🎁', 'Envies'],
-    ['histoire', '📖', 'Notre histoire'], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['rebours', '⏳', 'Comptes à rebours'],
+    ['cycle', '🌸', 'Cycle'], ['histoire', '📖', 'Notre histoire'], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['rebours', '⏳', 'Comptes à rebours'],
     ['roue', '🎡', 'La roue'], ['reglages', '⚙️', 'Réglages']
   ];
   return [head('Plus'), h('div', { class: 'tiles' }, tiles.map(([id, e, lab, n]) => h('button', { class: 'glass tile', onclick: () => go(id) }, h('span', { class: 'e' }, e), lab, n ? h('span', { class: 'badge' }, n) : null)))];
@@ -1507,6 +1513,75 @@ function schedCard() {
       : h('p', { class: 'small muted' }, 'Écris maintenant, il arrive à l\'heure que tu choisis. Par exemple à la fin de son service.'));
 }
 
+/* ----- suivi du cycle ----- */
+// Chacun ne voit que son propre suivi, sauf si l'autre a choisi de le partager (vérifié côté serveur).
+function cycleInfo(u) {
+  const es = all('cycles').filter(c => c.by === u && c.start).sort((a, b) => a.start.localeCompare(b.start));
+  if (!es.length) return null;
+  const t = today(), gaps = [], durs = [];
+  for (let i = 1; i < es.length; i++) { const g = daysBetween(es[i - 1].start, es[i].start); if (g >= 15 && g <= 60) gaps.push(g); }
+  for (const e of es) if (e.end && e.end >= e.start) durs.push(daysBetween(e.start, e.end) + 1);
+  const mean = (a, d) => a.length ? Math.round(a.slice(-6).reduce((x, y) => x + y, 0) / Math.min(a.length, 6)) : d;
+  const avg = mean(gaps, 28), dur = Math.min(10, mean(durs, 5)), last = es[es.length - 1];
+  const lastEnd = last.end || addDays(last.start, dur - 1), open = !last.end && daysBetween(last.start, t) < 10;
+  let next = addDays(last.start, avg); while (next < t && daysBetween(next, t) > dur) next = addDays(next, avg);
+  return { es, avg, dur, last, next, open, known: gaps.length > 0, inPeriod: t >= last.start && (open || t <= lastEnd), day: daysBetween(last.start, t) + 1 };
+}
+function cycleDays(u) { // jours saisis et jours estimés, pour le calendrier
+  const ci = cycleInfo(u), real = new Set(), est = new Set(); if (!ci) return { real, est };
+  const t = today();
+  for (const e of ci.es) { const end = e.end || (e === ci.last && ci.open ? (t > e.start ? t : e.start) : addDays(e.start, ci.dur - 1)); for (let d = e.start, n = 0; d <= end && n < 12; d = addDays(d, 1), n++) real.add(d); }
+  for (let k = 0, s = ci.next; k < 3; k++, s = addDays(s, ci.avg)) for (let i = 0; i < ci.dur; i++) { const d = addDays(s, i); if (!real.has(d)) est.add(d); }
+  return { real, est };
+}
+function cycleLine(u) {
+  const ci = cycleInfo(u); if (!ci) return null;
+  const n = daysBetween(today(), ci.next);
+  if (ci.inPeriod) return { big: `Jour ${ci.day}`, text: 'Règles en cours', soon: true };
+  if (n < 0) return { big: `+${-n} j`, text: `Règles attendues depuis le ${fmtD(ci.next)}`, soon: true };
+  return { big: n === 0 ? 'Auj.' : `J-${n}`, text: `Prochaines règles estimées ${n === 0 ? 'aujourd\'hui' : 'vers le ' + fmtD(ci.next)}`, soon: n <= 5 };
+}
+function cycleCard() { // sur l'accueil : seulement quand c'est en cours ou proche
+  const rows = S.users.map(u => [u, cycleLine(u.id)]).filter(([, l]) => l && l.soon);
+  if (!rows.length) return null;
+  return h('button', { class: 'glass card tap', onclick: () => go('cycle') }, h('div', { class: 'eyebrow' }, 'Cycle'),
+    rows.map(([u, l]) => h('div', { class: 'row' }, h('span', { class: 'emo' }, '🌸'), h('div', { class: 'grow' }, h('div', { class: 'b' }, (u.id === S.me.id ? '' : u.name + ' · ') + l.text), h('div', { class: 'small muted' }, l.big)))));
+}
+function cycleForm(c) {
+  formSheet({
+    title: c.id ? 'Modifier' : 'Ajouter des règles', values: { start: today(), ...c },
+    fields: [{ k: 'start', label: 'Premier jour', type: 'date', half: true, required: true }, { k: 'end', label: 'Dernier jour', type: 'date', half: true, hint: 'Vide si elles sont en cours.' }, { k: 'note', label: 'Note (facultatif)', ph: 'Douleurs, fatigue, humeur…' }],
+    onSubmit: v => { if (v.end && v.end < v.start) { toast('La fin est avant le début'); return false; } if (v.start > today()) { toast('Choisis une date passée ou aujourd\'hui'); return false; } const d = { ...v }; if (!d.end) delete d.end; return put('cycles', d); },
+    onDelete: c.id ? () => del('cycles', c.id) : null
+  });
+}
+VIEWS.cycle = () => {
+  const me = S.me.id, o = other(), pr = profile(me), mine = cycleInfo(me), his = cycleInfo(o.id), t = today();
+  const tracking = pr.trackCycle || !!mine, setP = patch => put('profiles', { ...pr, id: me, ...patch });
+  const status = (u, ci) => {
+    const l = cycleLine(u);
+    return [h('div', { class: 'row' }, h('div', { class: 'cd' }, h('div', { class: 'j' }, l.big)), h('div', { class: 'grow' }, h('div', { class: 'mid' }, l.text), h('div', { class: 'small muted' }, `Cycle moyen : ${ci.avg} jours${ci.known ? '' : ' (valeur par défaut)'} · durée : ${ci.dur} jours`)))];
+  };
+  const out = [head('Cycle', { back: 'plus', add: tracking ? () => cycleForm({}) : null, addLabel: 'Ajouter des règles' })];
+  if (!tracking) out.push(sec(h('p', { class: 'mid' }, 'Suivre mon cycle'), h('p', { class: 'small muted' }, `Note les jours de tes règles pour voir où tu en es et quand arrivent les prochaines. Toi seul(e) vois ces dates, sauf si tu choisis de les partager avec ${o.name}.`), h('button', { class: 'btn pri full', onclick: () => setP({ trackCycle: true }) }, 'Commencer')));
+  else {
+    out.push(sec(eyebrow('Mon cycle'),
+      mine ? status(me, mine) : h('p', { class: 'muted' }, 'Indique le premier jour de tes dernières règles pour démarrer.'),
+      mine && mine.open ? h('button', { class: 'btn pri full', onclick: () => put('cycles', { ...mine.last, end: t }) }, 'Elles sont terminées')
+        : h('button', { class: 'btn pri full', onclick: () => { if (mine && mine.last.start === t) return toast('Déjà noté pour aujourd\'hui'); put('cycles', { start: t }); } }, 'Elles ont commencé aujourd\'hui'),
+      h('button', { class: 'btn full', onclick: () => cycleForm({}) }, 'Ajouter d\'autres dates')));
+    out.push(sec(h('div', { class: 'row between' }, h('div', { class: 'grow' }, h('div', { class: 'b' }, `Partager avec ${o.name}`), h('div', { class: 'small muted' }, pr.shareCycle ? `${o.name} voit tes dates, l'estimation et reçoit une notification au début.` : `${o.name} ne voit rien de ton suivi.`)),
+      h('button', { class: 'chip' + (pr.shareCycle ? ' on' : ''), role: 'switch', 'aria-checked': String(!!pr.shareCycle), 'aria-label': 'Partager mon cycle', onclick: () => setP({ shareCycle: !pr.shareCycle }) }, pr.shareCycle ? 'Activé' : 'Désactivé'))));
+    if (mine) out.push(sec(eyebrow('Historique'), h('div', { class: 'list' }, mine.es.slice().reverse().slice(0, 12).map((e, i, a) => {
+      const prev = a[i + 1], gap = prev ? daysBetween(prev.start, e.start) : null;
+      return h('button', { class: 'item', onclick: () => cycleForm(e) }, h('span', { class: 'emo' }, '🌸'), h('div', { class: 'grow' }, h('div', { class: 'b' }, cap(fmtD(e.start, { day: 'numeric', month: 'long', year: 'numeric' }))), h('div', { class: 'small muted ell' }, [e.end ? `${daysBetween(e.start, e.end) + 1} jours` : 'En cours', gap ? `cycle de ${gap} jours` : '', e.note].filter(Boolean).join(' · '))));
+    }))));
+  }
+  if (his) out.push(sec(eyebrow(`Cycle de ${o.name}`), status(o.id, his), his.last.note && his.inPeriod ? h('p', { class: 'small muted' }, 'Note : ' + his.last.note) : null));
+  out.push(h('p', { class: 'small faint center' }, 'Les dates à venir sont une estimation calculée sur les cycles précédents. Ce n\'est ni un avis médical ni un moyen de contraception.'));
+  return out;
+};
+
 </script>
 <script>
 'use strict';
@@ -1535,7 +1610,8 @@ window.nousSeed = function () {
   add('coupons', { title: 'Petit-déj au lit', emoji: '🍳', from: M, to: G }, M, 50);
   add('coupons', { title: 'Tu choisis le film, sans discussion', emoji: '🎬', from: M, to: G, usedAt: now - 5 * 864e5 }, M, 300);
   add('scheduled', { text: 'Bravo pour ton service, je t\'attends avec un thé 🍵', to: G, sendAt: addDays(t, 1) + 'T23:35' });
-  add('profiles', { id: M, home: 'Paris' }); add('profiles', { id: G, home: 'Paris' }, G);
+  add('profiles', { id: M, home: 'Paris' }); add('profiles', { id: G, home: 'Paris', trackCycle: true, shareCycle: true }, G);
+  for (const [a, n] of [[81, 5], [53, 4], [25, 5]]) add('cycles', { start: addDays(t, -a), end: addDays(t, -a + n - 1) }, G, a * 24);
   // villes : Mathis à Bordeaux du lundi au mercredi, les deux prochaines semaines
   const dow = pd(t).getDay(), nextMon = addDays(t, ((8 - dow) % 7) || 7);
   for (const w of [0, 14]) for (let i = 0; i < 3; i++) { const d = addDays(nextMon, w + i); add('places', { id: d + '_' + M, date: d, user: M, place: 'Bordeaux' }); }

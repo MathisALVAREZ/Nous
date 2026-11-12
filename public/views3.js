@@ -110,3 +110,72 @@ function schedCard() {
     list.length ? h('div', { class: 'list' }, list.map(s => h('div', { class: 'item' }, h('span', { class: 'emo' }, '⏰'), h('div', { class: 'grow' }, h('div', { class: 'ell' }, s.text), h('div', { class: 'small muted' }, fmtWhen(s.sendAt))), h('button', { class: 'ibtn', style: { width: '32px', height: '32px' }, 'aria-label': 'Annuler ce mot', onclick: () => del('scheduled', s.id) }, icon('x')))))
       : h('p', { class: 'small muted' }, 'Écris maintenant, il arrive à l\'heure que tu choisis. Par exemple à la fin de son service.'));
 }
+
+/* ----- suivi du cycle ----- */
+// Chacun ne voit que son propre suivi, sauf si l'autre a choisi de le partager (vérifié côté serveur).
+function cycleInfo(u) {
+  const es = all('cycles').filter(c => c.by === u && c.start).sort((a, b) => a.start.localeCompare(b.start));
+  if (!es.length) return null;
+  const t = today(), gaps = [], durs = [];
+  for (let i = 1; i < es.length; i++) { const g = daysBetween(es[i - 1].start, es[i].start); if (g >= 15 && g <= 60) gaps.push(g); }
+  for (const e of es) if (e.end && e.end >= e.start) durs.push(daysBetween(e.start, e.end) + 1);
+  const mean = (a, d) => a.length ? Math.round(a.slice(-6).reduce((x, y) => x + y, 0) / Math.min(a.length, 6)) : d;
+  const avg = mean(gaps, 28), dur = Math.min(10, mean(durs, 5)), last = es[es.length - 1];
+  const lastEnd = last.end || addDays(last.start, dur - 1), open = !last.end && daysBetween(last.start, t) < 10;
+  let next = addDays(last.start, avg); while (next < t && daysBetween(next, t) > dur) next = addDays(next, avg);
+  return { es, avg, dur, last, next, open, known: gaps.length > 0, inPeriod: t >= last.start && (open || t <= lastEnd), day: daysBetween(last.start, t) + 1 };
+}
+function cycleDays(u) { // jours saisis et jours estimés, pour le calendrier
+  const ci = cycleInfo(u), real = new Set(), est = new Set(); if (!ci) return { real, est };
+  const t = today();
+  for (const e of ci.es) { const end = e.end || (e === ci.last && ci.open ? (t > e.start ? t : e.start) : addDays(e.start, ci.dur - 1)); for (let d = e.start, n = 0; d <= end && n < 12; d = addDays(d, 1), n++) real.add(d); }
+  for (let k = 0, s = ci.next; k < 3; k++, s = addDays(s, ci.avg)) for (let i = 0; i < ci.dur; i++) { const d = addDays(s, i); if (!real.has(d)) est.add(d); }
+  return { real, est };
+}
+function cycleLine(u) {
+  const ci = cycleInfo(u); if (!ci) return null;
+  const n = daysBetween(today(), ci.next);
+  if (ci.inPeriod) return { big: `Jour ${ci.day}`, text: 'Règles en cours', soon: true };
+  if (n < 0) return { big: `+${-n} j`, text: `Règles attendues depuis le ${fmtD(ci.next)}`, soon: true };
+  return { big: n === 0 ? 'Auj.' : `J-${n}`, text: `Prochaines règles estimées ${n === 0 ? 'aujourd\'hui' : 'vers le ' + fmtD(ci.next)}`, soon: n <= 5 };
+}
+function cycleCard() { // sur l'accueil : seulement quand c'est en cours ou proche
+  const rows = S.users.map(u => [u, cycleLine(u.id)]).filter(([, l]) => l && l.soon);
+  if (!rows.length) return null;
+  return h('button', { class: 'glass card tap', onclick: () => go('cycle') }, h('div', { class: 'eyebrow' }, 'Cycle'),
+    rows.map(([u, l]) => h('div', { class: 'row' }, h('span', { class: 'emo' }, '🌸'), h('div', { class: 'grow' }, h('div', { class: 'b' }, (u.id === S.me.id ? '' : u.name + ' · ') + l.text), h('div', { class: 'small muted' }, l.big)))));
+}
+function cycleForm(c) {
+  formSheet({
+    title: c.id ? 'Modifier' : 'Ajouter des règles', values: { start: today(), ...c },
+    fields: [{ k: 'start', label: 'Premier jour', type: 'date', half: true, required: true }, { k: 'end', label: 'Dernier jour', type: 'date', half: true, hint: 'Vide si elles sont en cours.' }, { k: 'note', label: 'Note (facultatif)', ph: 'Douleurs, fatigue, humeur…' }],
+    onSubmit: v => { if (v.end && v.end < v.start) { toast('La fin est avant le début'); return false; } if (v.start > today()) { toast('Choisis une date passée ou aujourd\'hui'); return false; } const d = { ...v }; if (!d.end) delete d.end; return put('cycles', d); },
+    onDelete: c.id ? () => del('cycles', c.id) : null
+  });
+}
+VIEWS.cycle = () => {
+  const me = S.me.id, o = other(), pr = profile(me), mine = cycleInfo(me), his = cycleInfo(o.id), t = today();
+  const tracking = pr.trackCycle || !!mine, setP = patch => put('profiles', { ...pr, id: me, ...patch });
+  const status = (u, ci) => {
+    const l = cycleLine(u);
+    return [h('div', { class: 'row' }, h('div', { class: 'cd' }, h('div', { class: 'j' }, l.big)), h('div', { class: 'grow' }, h('div', { class: 'mid' }, l.text), h('div', { class: 'small muted' }, `Cycle moyen : ${ci.avg} jours${ci.known ? '' : ' (valeur par défaut)'} · durée : ${ci.dur} jours`)))];
+  };
+  const out = [head('Cycle', { back: 'plus', add: tracking ? () => cycleForm({}) : null, addLabel: 'Ajouter des règles' })];
+  if (!tracking) out.push(sec(h('p', { class: 'mid' }, 'Suivre mon cycle'), h('p', { class: 'small muted' }, `Note les jours de tes règles pour voir où tu en es et quand arrivent les prochaines. Toi seul(e) vois ces dates, sauf si tu choisis de les partager avec ${o.name}.`), h('button', { class: 'btn pri full', onclick: () => setP({ trackCycle: true }) }, 'Commencer')));
+  else {
+    out.push(sec(eyebrow('Mon cycle'),
+      mine ? status(me, mine) : h('p', { class: 'muted' }, 'Indique le premier jour de tes dernières règles pour démarrer.'),
+      mine && mine.open ? h('button', { class: 'btn pri full', onclick: () => put('cycles', { ...mine.last, end: t }) }, 'Elles sont terminées')
+        : h('button', { class: 'btn pri full', onclick: () => { if (mine && mine.last.start === t) return toast('Déjà noté pour aujourd\'hui'); put('cycles', { start: t }); } }, 'Elles ont commencé aujourd\'hui'),
+      h('button', { class: 'btn full', onclick: () => cycleForm({}) }, 'Ajouter d\'autres dates')));
+    out.push(sec(h('div', { class: 'row between' }, h('div', { class: 'grow' }, h('div', { class: 'b' }, `Partager avec ${o.name}`), h('div', { class: 'small muted' }, pr.shareCycle ? `${o.name} voit tes dates, l'estimation et reçoit une notification au début.` : `${o.name} ne voit rien de ton suivi.`)),
+      h('button', { class: 'chip' + (pr.shareCycle ? ' on' : ''), role: 'switch', 'aria-checked': String(!!pr.shareCycle), 'aria-label': 'Partager mon cycle', onclick: () => setP({ shareCycle: !pr.shareCycle }) }, pr.shareCycle ? 'Activé' : 'Désactivé'))));
+    if (mine) out.push(sec(eyebrow('Historique'), h('div', { class: 'list' }, mine.es.slice().reverse().slice(0, 12).map((e, i, a) => {
+      const prev = a[i + 1], gap = prev ? daysBetween(prev.start, e.start) : null;
+      return h('button', { class: 'item', onclick: () => cycleForm(e) }, h('span', { class: 'emo' }, '🌸'), h('div', { class: 'grow' }, h('div', { class: 'b' }, cap(fmtD(e.start, { day: 'numeric', month: 'long', year: 'numeric' }))), h('div', { class: 'small muted ell' }, [e.end ? `${daysBetween(e.start, e.end) + 1} jours` : 'En cours', gap ? `cycle de ${gap} jours` : '', e.note].filter(Boolean).join(' · '))));
+    }))));
+  }
+  if (his) out.push(sec(eyebrow(`Cycle de ${o.name}`), status(o.id, his), his.last.note && his.inPeriod ? h('p', { class: 'small muted' }, 'Note : ' + his.last.note) : null));
+  out.push(h('p', { class: 'small faint center' }, 'Les dates à venir sont une estimation calculée sur les cycles précédents. Ce n\'est ni un avis médical ni un moyen de contraception.'));
+  return out;
+};

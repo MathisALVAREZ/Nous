@@ -24,7 +24,8 @@ window.nousSeed = function () {
   add('coupons', { title: 'Petit-déj au lit', emoji: '🍳', from: M, to: G }, M, 50);
   add('coupons', { title: 'Tu choisis le film, sans discussion', emoji: '🎬', from: M, to: G, usedAt: now - 5 * 864e5 }, M, 300);
   add('scheduled', { text: 'Bravo pour ton service, je t\'attends avec un thé 🍵', to: G, sendAt: addDays(t, 1) + 'T23:35' });
-  add('profiles', { id: M, home: 'Paris' }); add('profiles', { id: G, home: 'Paris' }, G);
+  add('profiles', { id: M, home: 'Paris' }); add('profiles', { id: G, home: 'Paris', trackCycle: true, shareCycle: true }, G);
+  for (const [a, n] of [[81, 5], [53, 4], [25, 5]]) add('cycles', { start: addDays(t, -a), end: addDays(t, -a + n - 1) }, G, a * 24);
   // villes : Mathis à Bordeaux du lundi au mercredi, les deux prochaines semaines
   const dow = pd(t).getDay(), nextMon = addDays(t, ((8 - dow) % 7) || 7);
   for (const w of [0, 14]) for (let i = 0; i < 3; i++) { const d = addDays(nextMon, w + i); add('places', { id: d + '_' + M, date: d, user: M, place: 'Bordeaux' }); }
