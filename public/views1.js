@@ -1,6 +1,7 @@
 'use strict';
 /* Nous — vues principales : accueil, agenda, comptes, appart. */
-const PLACES = [['Paris', '#5e5ce6'], ['Bordeaux', '#c2255c'], ['Gif-sur-Yvette', '#2fa860'], ['Ailleurs', '#ff9f0a']];
+const PLACES = [['Paris', '#7c7aff'], ['Bordeaux', '#ff4d88'], ['Gif-sur-Yvette', '#30c172'], ['Ailleurs', '#ffa726']];
+const placeTag = (p, empty) => h('div', { class: 'small b ell ptag' }, p ? h('i', { class: 'dot', c: pcolor(p) }) : null, p || empty);
 const pcolor = p => (PLACES.find(x => x[0] === p) || [0, '#ff9f0a'])[1];
 const placeOf = (u, d) => { const e = (S.cols.places || {})[d + '_' + u]; return (e && e.place) || profile(u).home || null; };
 const KINDS = [['event', 'Événement', '📌'], ['soiree', 'Soirée', '🥂'], ['service', 'Service', '🍽️'], ['cours', 'Cours', '🎓'], ['travail', 'Travail', '💼'], ['trajet', 'Trajet', '🚄']];
@@ -75,7 +76,7 @@ VIEWS.home = () => {
     head(`${hr < 5 ? 'Bonne nuit' : hr < 18 ? 'Bonjour' : 'Bonsoir'} ${me.name}`, { sub: cap(fmtD(t, { weekday: 'long', day: 'numeric', month: 'long' })), extra: h('button', { class: 'ibtn', 'aria-label': 'Envoyer un petit mot', onclick: quickNote }, icon('heart')) }),
     S.demo && h('div', { class: 'demo-flag' }, 'Démo · données d\'exemple'),
     sec(eyebrow('Où on est aujourd\'hui'),
-      h('div', { class: 'where' }, S.users.map(u => { const p = placeOf(u.id, t); return h('button', { onclick: () => placeSheet(u.id, t) }, avatar(u.id), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, u.name), h('div', { class: 'small ell b', style: { color: p ? pcolor(p) : '' } }, p || 'Ville à préciser'))); })),
+      h('div', { class: 'where' }, S.users.map(u => { const p = placeOf(u.id, t); return h('button', { onclick: () => placeSheet(u.id, t) }, avatar(u.id), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, u.name), placeTag(p, 'Ville à préciser'))); })),
       h('div', { class: 'row' },
         tg && tg.in > 0 && h('div', { class: 'big num' }, 'J-' + tg.in),
         h('p', { class: tg ? 'mid grow' : 'muted grow' }, !tg ? 'Indiquez vos villes dans l\'agenda pour voir quand vous vous retrouvez.'
@@ -197,7 +198,7 @@ VIEWS.agenda = () => {
       h('div', { class: 'cal' }, ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => h('div', { class: 'dow' }, d)), cells),
       h('div', { class: 'legend' }, h('span', null, `Barre : ${S.users.map(u => u.name).join(' | ')}`), usedPlaces.map(p => h('span', null, h('i', { class: 'dot', c: pcolor(p) }), p)))),
     sec(eyebrow(cap(fmtD(sel, { weekday: 'long', day: 'numeric', month: 'long' })), h('span', { class: 'small faint' }, cap(rel(sel)))),
-      h('div', { class: 'where' }, S.users.map(u => { const p = placeOf(u.id, sel); return h('button', { onclick: () => placeSheet(u.id, sel) }, avatar(u.id, true), h('div', { class: 'grow small' }, h('div', { class: 'ell' }, u.name), h('div', { class: 'b ell', style: { color: p ? pcolor(p) : '' } }, p || 'À préciser'))); })),
+      h('div', { class: 'where' }, S.users.map(u => { const p = placeOf(u.id, sel); return h('button', { onclick: () => placeSheet(u.id, sel) }, avatar(u.id, true), h('div', { class: 'grow small' }, h('div', { class: 'ell' }, u.name), placeTag(p, 'À préciser'))); })),
       evs.length ? h('div', { class: 'list' }, evs.map(eventRow)) : h('div', { class: 'empty' }, 'Rien de prévu ce jour-là.'),
       h('button', { class: 'btn full', onclick: () => eventSheet({ date: sel }) }, icon('plus'), 'Ajouter')),
     sec(eyebrow('Dans la même ville'),

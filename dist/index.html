@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nous</title>
+<style>
+:root {
+  /* Nous — verre liquide : panneaux translucides sur un fond de lumière diffuse ; colonne unique mobile, barre d'onglets en capsule flottante */
+  --bg: #e8edfb;
+  --ink: #0b1220;
+  --ink2: rgba(11, 18, 32, .64);
+  --ink3: rgba(11, 18, 32, .40);
+  --glass: rgba(255, 255, 255, .44);
+  --glass2: rgba(255, 255, 255, .70);
+  --field: rgba(255, 255, 255, .55);
+  --edge: rgba(255, 255, 255, .78);
+  --spec: rgba(255, 255, 255, .85);
+  --hair: rgba(11, 18, 32, .09);
+  --accent: #0a7aff;
+  --u0: #0a7aff;
+  --u1: #ff2d6f;
+  --good: #14994d;
+  --warn: #d97a00;
+  --bad: #e0323a;
+  --blob1: #86c2ff;
+  --blob2: #ffa9cc;
+  --blob3: #c4b0ff;
+  --blob4: #ffdc9c;
+  --shadow: 0 10px 36px rgba(40, 60, 120, .13);
+  --scrim: rgba(20, 28, 60, .28);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --display: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --r: 26px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #05070f; --ink: #f4f6ff; --ink2: rgba(244, 246, 255, .68); --ink3: rgba(244, 246, 255, .42);
+    --glass: rgba(255, 255, 255, .075); --glass2: rgba(40, 46, 70, .72); --field: rgba(255, 255, 255, .09);
+    --edge: rgba(255, 255, 255, .16); --spec: rgba(255, 255, 255, .22); --hair: rgba(255, 255, 255, .10);
+    --accent: #3d9bff; --u0: #3d9bff; --u1: #ff4f86; --good: #34d47a; --warn: #ffa733; --bad: #ff5a5f;
+    --blob1: #0f4fb8; --blob2: #7d1750; --blob3: #4b2ab0; --blob4: #0b6b70;
+    --shadow: 0 12px 40px rgba(0, 0, 0, .45); --scrim: rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #05070f; --ink: #f4f6ff; --ink2: rgba(244, 246, 255, .68); --ink3: rgba(244, 246, 255, .42);
+  --glass: rgba(255, 255, 255, .075); --glass2: rgba(40, 46, 70, .72); --field: rgba(255, 255, 255, .09);
+  --edge: rgba(255, 255, 255, .16); --spec: rgba(255, 255, 255, .22); --hair: rgba(255, 255, 255, .10);
+  --accent: #3d9bff; --u0: #3d9bff; --u1: #ff4f86; --good: #34d47a; --warn: #ffa733; --bad: #ff5a5f;
+  --blob1: #0f4fb8; --blob2: #7d1750; --blob3: #4b2ab0; --blob4: #0b6b70;
+  --shadow: 0 12px 40px rgba(0, 0, 0, .45); --scrim: rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.4 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; overscroll-behavior-y: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+a { color: var(--accent); text-decoration: none; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, p { margin: 0; }
+[hidden] { display: none !important; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* fond */
+#bg { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; background: var(--bg); }
+#bg i { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .85; animation: drift 26s ease-in-out infinite alternate; }
+#bg i:nth-child(1) { width: 70vmax; height: 70vmax; left: -25vmax; top: -25vmax; background: var(--blob1); }
+#bg i:nth-child(2) { width: 60vmax; height: 60vmax; right: -25vmax; top: 10vmax; background: var(--blob2); animation-duration: 32s; animation-direction: alternate-reverse; }
+#bg i:nth-child(3) { width: 65vmax; height: 65vmax; left: -10vmax; bottom: -30vmax; background: var(--blob3); animation-duration: 38s; }
+#bg i:nth-child(4) { width: 40vmax; height: 40vmax; right: -10vmax; bottom: -10vmax; background: var(--blob4); animation-duration: 30s; animation-direction: alternate-reverse; }
+@keyframes drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(6vmax, 5vmax, 0) scale(1.15); } }
+@media (prefers-reduced-motion: reduce) { #bg i { animation: none; } * { transition: none !important; animation-duration: .01s !important; } }
+
+#app { position: relative; z-index: 1; max-width: 540px; margin: 0 auto; min-height: 100%; padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 118px); display: flex; flex-direction: column; gap: 14px; }
+
+/* verre */
+.glass { position: relative; background: var(--glass); -webkit-backdrop-filter: blur(26px) saturate(180%); backdrop-filter: blur(26px) saturate(180%); border: 1px solid var(--edge); border-radius: var(--r); box-shadow: var(--shadow), inset 0 1px 0 var(--spec), inset 0 -1px 1px rgba(255, 255, 255, .06); }
+.card { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.card.tap { cursor: pointer; transition: transform .18s; text-align: left; width: 100%; }
+.card.tap:active { transform: scale(.975); }
+.row { display: flex; align-items: center; gap: 10px; }
+.row.wrap { flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 10px; }
+.grow { flex: 1; min-width: 0; }
+.between { justify-content: space-between; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.muted { color: var(--ink2); }
+.faint { color: var(--ink3); }
+.small { font-size: 13px; }
+.tiny { font-size: 11.5px; letter-spacing: .02em; }
+.eyebrow { font-size: 12px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--ink2); }
+.big { font: 700 30px/1.1 var(--display); letter-spacing: -.02em; }
+.mid { font: 650 19px/1.2 var(--display); letter-spacing: -.01em; text-wrap: balance; }
+.b { font-weight: 650; }
+.ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.center { text-align: center; }
+.good { color: var(--good); } .bad { color: var(--bad); } .warnc { color: var(--warn); }
+
+/* en-tête */
+.head { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 4px 2px 0; }
+.head h1 { font: 750 33px/1.05 var(--display); letter-spacing: -.03em; flex: 1; min-width: 0; text-wrap: balance; }
+.head .sub { font-size: 14px; color: var(--ink2); font-weight: 500; }
+.ibtn { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--glass); border: 1px solid var(--edge); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); box-shadow: var(--shadow), inset 0 1px 0 var(--spec); transition: transform .15s; }
+.ibtn:active { transform: scale(.9); }
+svg { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.btn svg { width: 19px; height: 19px; }
+.ibtn.pri { background: var(--accent); color: #fff; border-color: transparent; }
+
+/* boutons, puces */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 18px; border-radius: 999px; font-weight: 650; background: var(--field); border: 1px solid var(--edge); box-shadow: inset 0 1px 0 var(--spec); transition: transform .15s, opacity .15s; }
+.btn:active { transform: scale(.96); }
+.btn.pri { background: var(--accent); color: #fff; border-color: transparent; box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, .35); }
+.btn.danger { color: var(--bad); }
+.btn.sm { min-height: 36px; padding: 0 14px; font-size: 14px; }
+.btn.full { width: 100%; }
+.btn:disabled { opacity: .45; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chips.scroll { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 2px 16px; scrollbar-width: none; }
+.chips.scroll::-webkit-scrollbar { display: none; }
+.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 13px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; background: var(--field); border: 1px solid var(--edge); box-shadow: inset 0 1px 0 var(--spec); flex: none; }
+.chip.on { background: var(--ink); color: var(--bg); border-color: transparent; }
+.chip .n { opacity: .6; font-weight: 500; }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 650; white-space: nowrap; color: var(--c, var(--ink2)); background: color-mix(in srgb, var(--c, var(--ink3)) 16%, transparent); }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.plain::before { display: none; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--ink3)); flex: none; }
+.ava { width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center; font: 700 17px var(--display); color: #fff; background: linear-gradient(145deg, color-mix(in srgb, var(--c) 70%, #fff), var(--c)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 4px 12px color-mix(in srgb, var(--c) 35%, transparent); }
+.ava { letter-spacing: -.03em; font-size: 15px; }
+.ava.sm { width: 26px; height: 26px; font-size: 10.5px; }
+.sep { height: 1px; background: var(--hair); border: 0; margin: 2px 0; }
+
+/* listes */
+.list { display: flex; flex-direction: column; }
+.item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--hair); text-align: left; width: 100%; min-height: 48px; }
+.item:last-child { border-bottom: 0; padding-bottom: 0; }
+.item:first-child { padding-top: 0; }
+.emo { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; font-size: 20px; flex: none; background: var(--field); border: 1px solid var(--edge); }
+.amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.empty { text-align: center; color: var(--ink2); padding: 22px 10px; font-size: 15px; }
+.check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--ink3); flex: none; display: grid; place-items: center; color: #fff; font-size: 14px; }
+.check.on { background: var(--good); border-color: var(--good); }
+.done-t { text-decoration: line-through; color: var(--ink3); }
+
+/* onglets */
+#tabs { position: fixed; z-index: 20; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); width: min(calc(100% - 28px), 440px); display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px; border-radius: 999px; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; border-radius: 999px; font-size: 10.5px; font-weight: 650; color: var(--ink2); transition: background .25s, color .25s; }
+.tab.on { color: var(--accent); background: var(--glass2); box-shadow: inset 0 1px 0 var(--spec), 0 2px 10px rgba(0, 0, 0, .08); }
+
+/* feuilles */
+#sheets { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+.scrim { position: absolute; inset: 0; background: var(--scrim); opacity: 0; transition: opacity .28s; pointer-events: auto; }
+.scrim.in { opacity: 1; }
+.sheet { position: absolute; left: 50%; bottom: 0; width: min(100%, 540px); max-height: 92%; transform: translate(-50%, 104%); transition: transform .34s cubic-bezier(.2, .9, .25, 1); pointer-events: auto; display: flex; flex-direction: column; border-radius: 32px 32px 0 0; background: var(--glass2); -webkit-backdrop-filter: blur(40px) saturate(190%); backdrop-filter: blur(40px) saturate(190%); border: 1px solid var(--edge); border-bottom: 0; box-shadow: 0 -10px 50px rgba(0, 0, 0, .22), inset 0 1px 0 var(--spec); }
+.sheet.in { transform: translate(-50%, 0); }
+.sheet-h { display: flex; align-items: center; gap: 10px; padding: 18px 18px 8px; }
+.sheet-h::before { content: ""; position: absolute; top: 7px; left: 50%; width: 38px; height: 5px; margin-left: -19px; border-radius: 3px; background: var(--ink3); }
+.sheet-h h2 { flex: 1; min-width: 0; font: 700 21px/1.2 var(--display); letter-spacing: -.02em; }
+.sheet-b { overflow-y: auto; padding: 6px 18px calc(env(safe-area-inset-bottom, 0px) + 22px); display: flex; flex-direction: column; gap: 14px; overscroll-behavior: contain; }
+
+/* formulaires */
+.f { display: flex; flex-direction: column; gap: 6px; }
+.f > label, .f > .lab { font-size: 13px; font-weight: 650; color: var(--ink2); padding-left: 4px; }
+.inp { width: 100%; min-height: 46px; padding: 10px 14px; border-radius: 15px; background: var(--field); border: 1px solid var(--edge); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .05); outline: 0; -webkit-appearance: none; appearance: none; }
+.inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+textarea.inp { min-height: 84px; resize: vertical; }
+select.inp { background-image: linear-gradient(45deg, transparent 50%, var(--ink2) 50%), linear-gradient(135deg, var(--ink2) 50%, transparent 50%); background-position: calc(100% - 20px) 21px, calc(100% - 15px) 21px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
+select.inp option { background: Canvas; color: CanvasText; }
+.ptag { display: flex; align-items: center; gap: 6px; }
+.ptag .dot { width: 8px; height: 8px; }
+.seg { display: flex; padding: 3px; border-radius: 15px; background: var(--field); border: 1px solid var(--edge); gap: 2px; }
+.seg button { flex: 1; min-height: 38px; border-radius: 12px; font-size: 14px; font-weight: 650; color: var(--ink2); padding: 0 6px; }
+.seg button.on { background: var(--glass2); color: var(--ink); box-shadow: 0 1px 6px rgba(0, 0, 0, .12), inset 0 1px 0 var(--spec); }
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* accueil */
+.hello { font: 750 34px/1.05 var(--display); letter-spacing: -.03em; }
+.where { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.where button { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 18px; background: var(--field); border: 1px solid var(--edge); text-align: left; min-width: 0; }
+.strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.strip img, .pgrid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 14px; background: var(--field); }
+
+/* calendrier */
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cal .dow { text-align: center; font-size: 11px; font-weight: 650; color: var(--ink3); padding-bottom: 4px; }
+.day { aspect-ratio: 1 / 1.08; border-radius: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; position: relative; }
+.day.out { opacity: .28; }
+.day.today .dn { color: var(--accent); font-weight: 800; }
+.day.sel { background: var(--glass2); box-shadow: inset 0 1px 0 var(--spec), 0 2px 10px rgba(0, 0, 0, .1); }
+.day .bar { display: flex; width: 28px; height: 5px; gap: 2px; }
+.day .bar i { flex: 1; border-radius: 3px; background: var(--c, var(--ink3)); opacity: 1; }
+.day .bar i:not([style]) { opacity: .35; }
+.day .evs { display: flex; gap: 2px; height: 5px; }
+.day .evs i { width: 5px; height: 5px; border-radius: 50%; background: var(--c, var(--ink2)); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink2); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* comptes */
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.barrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; font-size: 14px; }
+.track { height: 9px; border-radius: 5px; background: var(--hair); overflow: hidden; }
+.track i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--u0), var(--u1)); }
+
+/* appart */
+.flat { padding: 0; overflow: hidden; }
+.flat .ph { height: 132px; background: linear-gradient(135deg, color-mix(in srgb, var(--blob1) 60%, transparent), color-mix(in srgb, var(--blob2) 60%, transparent)); display: grid; place-items: center; font-size: 34px; position: relative; }
+.flat .ph img { width: 100%; height: 132px; object-fit: cover; }
+.flat .ph .pill { position: absolute; left: 10px; top: 10px; color: #fff; background: rgba(10, 14, 30, .6); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.flat .ph .pill::before { background: var(--c); box-shadow: 0 0 0 2px rgba(255, 255, 255, .25); }
+.flat .ph .alert { left: auto; right: 10px; }
+.flat .in { padding: 13px 16px 15px; display: flex; flex-direction: column; gap: 7px; }
+.stars { display: inline-flex; gap: 2px; font-size: 22px; line-height: 1; }
+.stars button { color: var(--ink3); padding: 2px; }
+.stars button.on { color: #ffb400; }
+.tl { display: flex; flex-direction: column; gap: 8px; border-left: 2px solid var(--hair); margin-left: 5px; padding-left: 14px; }
+.tl div { position: relative; font-size: 14px; }
+.tl div::before { content: ""; position: absolute; left: -20px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--ink3)); }
+table.cmp { border-collapse: collapse; font-size: 14px; width: 100%; }
+table.cmp th, table.cmp td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--hair); white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.cmp th:first-child, table.cmp td:first-child { text-align: left; position: sticky; left: 0; background: var(--glass2); max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+table.cmp th { font-size: 12px; color: var(--ink2); }
+.scrollx { overflow-x: auto; }
+
+.moodcell { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 18px; background: var(--field); border: 1px solid var(--edge); text-align: left; min-width: 0; }
+.tl.story { gap: 18px; }
+.tl.story button { position: relative; text-align: left; display: flex; flex-direction: column; gap: 3px; }
+.tl.story button::before { content: ""; position: absolute; left: -21px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 22%, transparent); }
+.tl.story div::before { display: none; }
+.coupon { border-style: dashed; border-width: 1.5px; }
+.coupon.used { opacity: .55; }
+.coupon.used .mid { text-decoration: line-through; }
+
+/* plus */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tile { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 8px; text-align: center; font-size: 13px; font-weight: 650; border-radius: 24px; transition: transform .16s; }
+.tile:active { transform: scale(.94); }
+.tile .e { font-size: 30px; line-height: 1; }
+.tile .badge { position: absolute; top: 10px; right: 10px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--u1); color: #fff; font-size: 12px; display: grid; place-items: center; }
+
+/* mots */
+.thread { display: flex; flex-direction: column; gap: 8px; }
+.bub { max-width: 82%; padding: 10px 14px; border-radius: 20px; background: var(--glass); border: 1px solid var(--edge); align-self: flex-start; border-bottom-left-radius: 6px; overflow-wrap: anywhere; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+.bub.me { align-self: flex-end; background: var(--accent); color: #fff; border-color: transparent; border-radius: 20px; border-bottom-right-radius: 6px; }
+.bub time { display: block; font-size: 11px; opacity: .65; margin-top: 2px; }
+.composer { display: flex; gap: 8px; align-items: flex-end; }
+
+/* photos */
+.pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pgrid button { border-radius: 14px; overflow: hidden; }
+.viewer img { width: 100%; max-height: 62vh; object-fit: contain; border-radius: 18px; background: rgba(0, 0, 0, .2); }
+
+/* roue */
+.wheelbox { position: relative; width: min(300px, 78vw); aspect-ratio: 1; margin: 6px auto; }
+.wheelbox canvas { width: 100%; height: 100%; border-radius: 50%; transition: transform 4.2s cubic-bezier(.12, .7, .1, 1); box-shadow: var(--shadow); }
+.wheelbox::after { content: ""; position: absolute; left: 50%; top: -8px; margin-left: -11px; border: 11px solid transparent; border-top: 20px solid var(--ink); filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .3)); }
+
+/* compte à rebours */
+.cd { display: flex; align-items: center; gap: 14px; }
+.cd .j { font: 750 26px/1 var(--display); letter-spacing: -.02em; min-width: 76px; text-align: center; padding: 12px 6px; border-radius: 18px; background: var(--field); border: 1px solid var(--edge); font-variant-numeric: tabular-nums; }
+
+/* connexion */
+.login { margin: auto 0; padding: 28px 22px; gap: 16px; }
+.logo { font: 800 54px/1 var(--display); letter-spacing: -.05em; background: linear-gradient(120deg, var(--u0), var(--u1)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+#toast { position: fixed; z-index: 90; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 14px); transform: translate(-50%, -160%); transition: transform .35s cubic-bezier(.2, .9, .25, 1); padding: 12px 18px; border-radius: 999px; font-weight: 600; font-size: 14.5px; max-width: calc(100% - 32px); text-align: center; background: var(--glass2); }
+#toast.in { transform: translate(-50%, 0); }
+.demo-flag { align-self: center; font-size: 12px; font-weight: 650; padding: 4px 12px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge); color: var(--ink2); }
+
+</style>
+</head>
+<body>
+<div id="bg" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<main id="app"></main>
+<nav id="tabs" class="glass" aria-label="Navigation" hidden></nav>
+<div id="sheets"></div>
+<div id="toast" class="glass" role="status"></div>
+<script>window.NOUS_DEMO = true;</script>
+<script>
+/* Questions du jour — partagées entre le serveur et l'app.
+   t: 'open' (réponse libre), 'who' (qui de nous deux), 'choice' (tu préfères a / b) */
+(function (root) {
+  var Q = [
+    { t: 'open', q: "Quel est ton meilleur souvenir de nous deux ?" },
+    { t: 'who', q: "Qui de nous deux met le plus de temps à se préparer ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Un week-end à la mer", b: "Un week-end à la montagne" },
+    { t: 'open', q: "Quel plat te fait immédiatement penser à moi ?" },
+    { t: 'who', q: "Qui de nous deux est le plus têtu ?" },
+    { t: 'open', q: "Quelle est la première chose que tu as remarquée chez moi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Soirée canapé et série", b: "Soirée dehors jusqu'à pas d'heure" },
+    { t: 'open', q: "Si on partait demain, sans limite de budget, on irait où ?" },
+    { t: 'who', q: "Qui de nous deux s'endort en premier devant un film ?" },
+    { t: 'open', q: "Quelle chanson te fait penser à nous ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Petit-déj au lit", b: "Brunch en terrasse" },
+    { t: 'open', q: "Une habitude à moi qui te fait rire ?" },
+    { t: 'who', q: "Qui de nous deux dépense le plus en nourriture ?" },
+    { t: 'open', q: "C'est quoi, pour toi, le dimanche parfait à deux ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Vivre en plein centre-ville", b: "Vivre au calme avec un extérieur" },
+    { t: 'open', q: "Quel est le dernier moment où tu as été fier(e) de moi ?" },
+    { t: 'who', q: "Qui de nous deux a le plus de chances d'oublier son anniversaire de rencontre ?" },
+    { t: 'open', q: "Quel objet veux-tu absolument dans notre futur appart ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Un chat", b: "Un chien" },
+    { t: 'open', q: "Une chose que tu aimerais qu'on fasse plus souvent ?" },
+    { t: 'who', q: "Qui de nous deux chante le plus mal sous la douche ?" },
+    { t: 'open', q: "Quel a été ton moment préféré de cette semaine ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Cuisiner ensemble", b: "Se faire livrer" },
+    { t: 'open', q: "Si tu devais me décrire en trois mots ?" },
+    { t: 'who', q: "Qui de nous deux survivrait le plus longtemps à une invasion de zombies ?" },
+    { t: 'open', q: "Quel film ou quelle série veux-tu absolument me faire découvrir ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Road trip improvisé", b: "Voyage planifié à la minute" },
+    { t: 'open', q: "Quelle est ta petite attention préférée venant de moi ?" },
+    { t: 'who', q: "Qui de nous deux est le plus accro à son téléphone ?" },
+    { t: 'open', q: "Quel resto aimerais-tu tester avec moi bientôt ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Se lever tôt pour profiter", b: "Grasse mat' sans réveil" },
+    { t: 'open', q: "Qu'est-ce qui t'a fait sourire aujourd'hui ?" },
+    { t: 'who', q: "Qui de nous deux fait les meilleures pâtes ?" },
+    { t: 'open', q: "Une tradition que tu aimerais qu'on crée, rien qu'à nous ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Un concert dans une petite salle", b: "Un gros festival" },
+    { t: 'open', q: "Quel est le fou rire à deux dont tu te souviens le mieux ?" },
+    { t: 'who', q: "Qui de nous deux est le plus susceptible de se perdre avec un GPS ?" },
+    { t: 'open', q: "Quelle ville aimerais-tu qu'on visite cette année ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Recevoir des amis à la maison", b: "Sortir retrouver des amis" },
+    { t: 'open', q: "Quelle est la chose la plus drôle que j'aie dite ou faite récemment ?" },
+    { t: 'who', q: "Qui de nous deux pleure le plus devant un film ?" },
+    { t: 'open', q: "Quel est ton endroit préféré à Paris avec moi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Sucré", b: "Salé" },
+    { t: 'open', q: "Quelle compétence aimerais-tu qu'on apprenne ensemble ?" },
+    { t: 'who', q: "Qui de nous deux prend toute la couette ?" },
+    { t: 'open', q: "Qu'est-ce qui te manque le plus quand on n'est pas dans la même ville ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Été caniculaire", b: "Hiver sous la neige" },
+    { t: 'open', q: "Quel cadeau t'a le plus touché(e) ?" },
+    { t: 'who', q: "Qui de nous deux est le plus mauvais perdant ?" },
+    { t: 'open', q: "À quoi ressemble notre vie dans cinq ans, selon toi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Musée et balade", b: "Parc d'attractions" },
+    { t: 'open', q: "Quel est le meilleur repas qu'on ait partagé ?" },
+    { t: 'who', q: "Qui de nous deux lance le plus souvent « on mange quoi ce soir ? »" },
+    { t: 'open', q: "Une chose que tu admires chez moi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Appel vidéo", b: "Longs messages écrits" },
+    { t: 'open', q: "Quel serait le nom de notre futur animal de compagnie ?" },
+    { t: 'who', q: "Qui de nous deux est le plus en retard ?" },
+    { t: 'open', q: "Quelle activité un peu folle aimerais-tu tenter avec moi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Jeux de société", b: "Jeux vidéo" },
+    { t: 'open', q: "Qu'est-ce qui rend une soirée à deux réussie pour toi ?" },
+    { t: 'who', q: "Qui de nous deux garde le mieux un secret ?" },
+    { t: 'open', q: "Quel est ton souvenir de voyage préféré avec moi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Plage et transat", b: "Rando et panorama" },
+    { t: 'open', q: "Une expression ou un tic de langage à moi que tu adores ?" },
+    { t: 'who', q: "Qui de nous deux serait le plus à l'aise sur scène ?" },
+    { t: 'open', q: "Quelle pièce de notre appart imagines-tu en premier, et comment ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Train", b: "Avion" },
+    { t: 'open', q: "De quoi es-tu reconnaissant(e) en ce moment ?" },
+    { t: 'who', q: "Qui de nous deux mange le plus vite ?" },
+    { t: 'open', q: "Quel petit plaisir du quotidien préfères-tu partager avec moi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Cocktail", b: "Vin" },
+    { t: 'open', q: "Quel est le surnom que tu préfères que je te donne ?" },
+    { t: 'who', q: "Qui de nous deux fait le plus de bruit en dormant ?" },
+    { t: 'open', q: "Quelle est la prochaine chose qu'on devrait fêter ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Film d'horreur", b: "Comédie romantique" },
+    { t: 'open', q: "Quelle bêtise as-tu faite que tu ne m'as jamais racontée ?" },
+    { t: 'who', q: "Qui de nous deux gagnerait à un quiz de culture générale ?" },
+    { t: 'open', q: "Quelle odeur te fait penser à moi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Tout ranger tout de suite", b: "Laisser pour demain" },
+    { t: 'open', q: "Quel moment de notre rencontre revivrais-tu ?" },
+    { t: 'who', q: "Qui de nous deux a les goûts musicaux les plus douteux ?" },
+    { t: 'open', q: "Quel projet à deux te motive le plus en ce moment ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Pizza", b: "Sushi" },
+    { t: 'open', q: "Qu'est-ce que je fais qui te rassure ?" },
+    { t: 'who', q: "Qui de nous deux craque en premier après une dispute ?" },
+    { t: 'open', q: "Si on ouvrait un commerce ensemble, ce serait quoi ?" },
+    { t: 'choice', q: "Tu préfères…", a: "Photos posées", b: "Photos prises sur le vif" },
+    { t: 'open', q: "Quelle est ta photo préférée de nous ?" },
+    { t: 'who', q: "Qui de nous deux est le plus bavard au réveil ?" },
+    { t: 'open', q: "Un mot doux pour finir la journée ?" }
+  ];
+  if (typeof module !== 'undefined' && module.exports) module.exports = Q;
+  else root.NOUS_QUESTIONS = Q;
+})(this);
+
+</script>
+<script>
+'use strict';
+/* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
+const D = document;
+const $ = (s, r = D) => r.querySelector(s);
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled'];
+const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
+let B = null; // stockage actif
+const VIEWS = {};
+
+function h(tag, attrs, ...kids) {
+  const el = D.createElement(tag);
+  for (const k in attrs || {}) {
+    const v = attrs[k];
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'style') Object.assign(el.style, v);
+    else if (k === 'c') el.style.setProperty('--c', v);
+    else if (k === 'html') el.innerHTML = v; // uniquement pour les icônes SVG internes
+    else if (k.slice(0, 2) === 'on') el.addEventListener(k.slice(2), v);
+    else if (k in el) el[k] = v;
+    else el.setAttribute(k, v);
+  }
+  for (const c of kids.flat(Infinity)) if (c != null && c !== false) el.append(c.nodeType ? c : D.createTextNode(String(c)));
+  return el;
+}
+const ICON = {
+  home: 'M3 11.5l9-8 9 8M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9',
+  cal: 'M7 3v3M17 3v3M4 9.5h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z',
+  euro: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 9a3.6 3.6 0 1 0 0 6M7.5 11h5M7.5 13.2h5',
+  flat: 'M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M3 21h18M9 7.5h2M13 7.5h2M9 11.5h2M13 11.5h2M10 21v-4.5h4V21',
+  grid: 'M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z',
+  plus: 'M12 5v14M5 12h14', back: 'M15 5l-7 7 7 7', next: 'M9 5l7 7-7 7', x: 'M6 6l12 12M18 6L6 18',
+  heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
+  send: 'M4 12l16-8-6 16-3-6.5z', pin: 'M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+  cmp: 'M4 6h16M4 12h16M4 18h16M9 3v18', rep: 'M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5'
+};
+const icon = n => h('span', { style: { display: 'contents' }, html: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[n]}"/></svg>` });
+
+/* ----- dates, argent ----- */
+const pad = n => String(n).padStart(2, '0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const pd = s => { const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+const today = () => iso(new Date());
+const addDays = (s, n) => { const d = pd(s); d.setDate(d.getDate() + n); return iso(d); };
+const daysBetween = (a, b) => Math.round((pd(b) - pd(a)) / 864e5);
+const fmtD = (s, opt) => new Intl.DateTimeFormat('fr-FR', opt || { weekday: 'short', day: 'numeric', month: 'short' }).format(pd(s));
+const fmtT = ts => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(ts));
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const eur = n => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n || 0);
+const eur0 = n => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0);
+const rel = s => { const n = daysBetween(today(), s); return n === 0 ? "aujourd'hui" : n === 1 ? 'demain' : n === -1 ? 'hier' : n > 0 ? `dans ${n} jours` : `il y a ${-n} jours`; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const size = n => n > 1e6 ? (n / 1e6).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(n / 1e3)) + ' ko';
+
+/* ----- accès aux données ----- */
+const all = col => Object.values(S.cols[col] || {});
+const other = () => S.users.find(u => u.id !== S.me.id) || S.me;
+const nameOf = id => id === 'both' ? 'Nous deux' : (S.users.find(u => u.id === id) || {}).name || '?';
+const ucolor = id => S.users.findIndex(u => u.id === id) === 1 ? 'var(--u1)' : 'var(--u0)';
+const avatar = (id, sm) => h('span', { class: 'ava' + (sm ? ' sm' : ''), c: ucolor(id) }, nameOf(id).slice(0, 2));
+const couple = () => (S.cols.profiles || {})._couple || {};
+const profile = id => (S.cols.profiles || {})[id] || { id };
+
+/* ----- stockage serveur ----- */
+async function api(method, url, body) {
+  const opt = { method, headers: { 'X-Nous': '1' }, credentials: 'same-origin' };
+  if (body instanceof FormData) opt.body = body;
+  else if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  let r;
+  try { r = await fetch(url, opt); } catch (e) { throw new Error('Pas de connexion'); }
+  if (r.status === 401 && S.me) { S.me = null; showLogin(); throw new Error('Session expirée'); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Erreur serveur');
+  return j;
+}
+function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; }
+const Remote = {
+  async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
+  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); if (j.same) return false; applySync(j); return true; },
+  login: (l, p) => api('POST', '/api/login', { login: l, password: p }),
+  logout: () => api('POST', '/api/logout', {}),
+  put: (col, doc) => api('PUT', `/api/c/${col}/${encodeURIComponent(doc.id)}`, doc).then(() => { S.rev = -1; }),
+  del: (col, id) => api('DELETE', `/api/c/${col}/${encodeURIComponent(id)}`).then(() => { S.rev = -1; }),
+  upload(blob, name) { const fd = new FormData(); fd.append('file', blob, name); return api('POST', '/api/files', fd); },
+  fileUrl: id => '/api/files/' + id,
+  delFile: id => api('DELETE', '/api/files/' + id)
+};
+
+/* ----- stockage démo (cet appareil uniquement) ----- */
+const DEMO_USERS = [{ id: 'mathis', name: 'Mathis' }, { id: 'morgane', name: 'Morgane' }];
+const Demo = {
+  raw: null, files: {}, meId: null,
+  load() {
+    try { const j = JSON.parse(localStorage.getItem('nous-demo-v1')); if (j && j.cols) { this.raw = j.cols; this.files = j.files || {}; for (const c of COLS) this.raw[c] = this.raw[c] || {}; return; } } catch (e) { }
+    const s = window.nousSeed(); this.raw = s.cols; this.files = s.files;
+  },
+  save() {
+    try { localStorage.setItem('nous-demo-v1', JSON.stringify({ cols: this.raw, files: this.files })); }
+    catch (e) { try { localStorage.setItem('nous-demo-v1', JSON.stringify({ cols: this.raw, files: {} })); } catch (e2) { } }
+  },
+  view() {
+    const me = S.me.id, cols = {};
+    const mine = new Set(Object.values(this.raw.answers).filter(a => a.user === me).map(a => a.date));
+    for (const c of COLS) {
+      cols[c] = {};
+      for (const d of Object.values(this.raw[c] || {})) {
+        let v = d;
+        if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
+        if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
+        if (c === 'scheduled' && d.by !== me) continue; // un mot programmé reste secret jusqu'à l'heure
+        cols[c][d.id] = v;
+      }
+    }
+    S.cols = cols;
+  },
+  async boot() {
+    if (!this.raw) this.load();
+    S.users = DEMO_USERS;
+    let me = this.meId; try { me = me || localStorage.getItem('nous-demo-me'); } catch (e) { }
+    me = me || 'mathis'; // la démo s'ouvre directement, sans passer par la connexion
+    if (me === '-') return false;
+    S.me = S.users.find(u => u.id === me) || S.users[0]; this.view(); return true;
+  },
+  async login(l) {
+    const u = DEMO_USERS.find(u => u.id === String(l).trim().toLowerCase());
+    if (!u) throw new Error('En démo, connecte-toi avec « mathis » ou « morgane »');
+    this.meId = u.id; try { localStorage.setItem('nous-demo-me', u.id); } catch (e) { }
+  },
+  async logout() { this.meId = '-'; try { localStorage.setItem('nous-demo-me', '-'); } catch (e) { } },
+  async sync() { // en démo, c'est l'app qui « livre » les mots programmés arrivés à l'heure
+    const d = new Date(), now = `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; let n = 0;
+    for (const s of Object.values(this.raw.scheduled || {})) if (s.sendAt <= now) { const id = 'n' + uid(); this.raw.notes[id] = { id, text: s.text, to: s.to, by: s.by, at: Date.now() }; delete this.raw.scheduled[s.id]; n++; }
+    if (n) { this.save(); this.view(); } return n > 0;
+  },
+  async put(col, doc) {
+    const prev = this.raw[col][doc.id], d = { ...doc }; delete d.hidden;
+    if (col === 'wishes' && prev && prev.owner === S.me.id) { if (prev.reservedBy) d.reservedBy = prev.reservedBy; else delete d.reservedBy; }
+    this.raw[col][doc.id] = d; this.save(); this.view();
+  },
+  async del(col, id) { delete this.raw[col][id]; this.save(); this.view(); },
+  async upload(blob, name) {
+    const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+    const id = 'f' + uid(); this.files[id] = { name, mime: blob.type, size: blob.size, data }; this.save();
+    return { id, name, mime: blob.type, size: blob.size };
+  },
+  fileUrl(id) { return (this.files[id] || {}).data || ''; },
+  async delFile(id) { delete this.files[id]; this.save(); }
+};
+
+/* ----- écritures ----- */
+function afterWrite() {
+  if (S.demo) return render();
+  clearTimeout(afterWrite.t); afterWrite.t = setTimeout(doSync, 400);
+}
+async function put(col, doc) {
+  doc.id = doc.id || uid(); doc.by = doc.by || S.me.id; doc.at = Date.now();
+  (S.cols[col] = S.cols[col] || {})[doc.id] = doc; render();
+  try { await B.put(col, doc); } catch (e) { toast(e.message || 'Enregistrement impossible'); }
+  afterWrite(); return doc;
+}
+async function putMany(col, docs) {
+  for (const d of docs) { d.id = d.id || uid(); d.by = d.by || S.me.id; d.at = Date.now(); (S.cols[col] = S.cols[col] || {})[d.id] = d; }
+  render();
+  try { for (const d of docs) await B.put(col, d); } catch (e) { toast(e.message || 'Enregistrement impossible'); }
+  afterWrite();
+}
+async function del(col, id) {
+  if (S.cols[col]) delete S.cols[col][id]; render();
+  try { await B.del(col, id); } catch (e) { toast(e.message || 'Suppression impossible'); }
+  afterWrite();
+}
+async function doSync() {
+  if (!S.me) return;
+  try { if (await B.sync()) { genRecurring(); render(); } } catch (e) { }
+}
+
+/* ----- rendu ----- */
+const TABS = [['home', 'Accueil', 'home'], ['agenda', 'Agenda', 'cal'], ['comptes', 'Comptes', 'euro'], ['appart', 'Appart', 'flat'], ['plus', 'Plus', 'grid']];
+function render(force) {
+  if (!S.me) return;
+  const root = $('#app'), ae = D.activeElement;
+  if (!force && ae && root.contains(ae) && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) { S.dirty = true; return; }
+  S.dirty = false;
+  const v = VIEWS[S.view] || VIEWS.home;
+  root.replaceChildren(...[v()].flat(Infinity).filter(Boolean));
+  const tabs = $('#tabs'); tabs.hidden = false;
+  const cur = TABS.some(t => t[0] === S.view) ? S.view : 'plus';
+  tabs.replaceChildren(...TABS.map(([id, lab, ic]) => h('button', { class: 'tab' + (cur === id ? ' on' : ''), onclick: () => go(id), 'aria-current': cur === id ? 'page' : null }, icon(ic), lab)));
+}
+D.addEventListener('focusout', () => setTimeout(() => { if (S.dirty) render(); }, 80));
+function go(view) {
+  S.view = view;
+  try { if (location.hash.slice(1) !== view) location.hash = view; } catch (e) { }
+  window.scrollTo(0, 0); render(true);
+}
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (S.me && v && v !== S.view && VIEWS[v]) { S.view = v; window.scrollTo(0, 0); render(true); } });
+
+function head(title, o = {}) {
+  return h('div', { class: 'head' },
+    o.back && h('button', { class: 'ibtn', 'aria-label': 'Retour', onclick: typeof o.back === 'function' ? o.back : () => go(o.back) }, icon('back')),
+    h('div', { class: 'grow' }, o.sub && h('div', { class: 'sub' }, o.sub), h('h1', null, title)),
+    o.extra,
+    o.add && h('button', { class: 'ibtn pri', 'aria-label': o.addLabel || 'Ajouter', onclick: o.add }, icon('plus')));
+}
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('in');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('in'), 3000);
+}
+// Champ + bouton d'ajout rapide dans une vue ; garde le focus après l'ajout.
+function inlineAdd(id, ph, onAdd, ic) {
+  const inp = h('input', { class: 'inp', id, placeholder: ph, autocomplete: 'off', enterKeyHint: 'send' });
+  const submit = async e => {
+    e.preventDefault(); const t = inp.value.trim(); if (!t) return;
+    inp.value = ''; onAdd(t); render(true); const n = $('#' + id); if (n) n.focus();
+  };
+  return h('form', { class: 'composer', onsubmit: submit }, h('div', { class: 'grow' }, inp), h('button', { class: 'ibtn pri', type: 'submit', 'aria-label': 'Ajouter' }, icon(ic || 'plus')));
+}
+
+/* ----- feuilles ----- */
+function openSheet(title, body, opts = {}) {
+  const root = $('#sheets');
+  const scrim = h('div', { class: 'scrim' }), sh = h('div', { class: 'sheet', role: 'dialog', 'aria-label': title }), bodyEl = h('div', { class: 'sheet-b' });
+  const ctl = {
+    el: bodyEl,
+    close() { scrim.classList.remove('in'); sh.classList.remove('in'); setTimeout(() => { scrim.remove(); sh.remove(); }, 340); if (opts.onClose) opts.onClose(); },
+    refresh() { bodyEl.replaceChildren(...[typeof body === 'function' ? body(ctl) : body].flat(Infinity).filter(Boolean)); }
+  };
+  sh.append(h('div', { class: 'sheet-h' }, h('h2', null, title), h('button', { class: 'ibtn', 'aria-label': 'Fermer', onclick: ctl.close }, icon('x'))), bodyEl);
+  ctl.refresh(); scrim.addEventListener('click', ctl.close); root.append(scrim, sh);
+  requestAnimationFrame(() => requestAnimationFrame(() => { scrim.classList.add('in'); sh.classList.add('in'); }));
+  return ctl;
+}
+function confirmSheet(title, text, okLabel, danger) {
+  return new Promise(res => {
+    let done = false;
+    const c = openSheet(title, c => [
+      text && h('p', { class: 'muted' }, text),
+      h('button', { class: 'btn full ' + (danger ? 'danger' : 'pri'), onclick: () => { done = true; res(true); c.close(); } }, okLabel || 'Confirmer'),
+      h('button', { class: 'btn full', onclick: () => c.close() }, 'Annuler')
+    ], { onClose: () => { if (!done) res(false); } });
+  });
+}
+function fieldEl(f, v, upd) {
+  const id = 'f_' + f.k; let input;
+  const set = val => { v[f.k] = val; upd(); };
+  if (f.type === 'seg') {
+    input = h('div', { class: 'seg', id });
+    const draw = () => input.replaceChildren(...f.options.map(([val, lab]) => h('button', { type: 'button', class: v[f.k] === val ? 'on' : '', onclick: () => { set(val); draw(); } }, lab)));
+    if (v[f.k] == null) v[f.k] = f.options[0][0]; draw();
+  } else if (f.type === 'multi') {
+    input = h('div', { class: 'chips', id });
+    if (!Array.isArray(v[f.k])) v[f.k] = f.options.map(o => o[0]);
+    const draw = () => input.replaceChildren(...f.options.map(([val, lab]) => h('button', { type: 'button', class: 'chip' + (v[f.k].includes(val) ? ' on' : ''), onclick: () => { set(v[f.k].includes(val) ? v[f.k].filter(x => x !== val) : [...v[f.k], val]); draw(); } }, lab)));
+    draw();
+  } else if (f.type === 'select') {
+    if (v[f.k] == null) v[f.k] = f.options[0][0];
+    input = h('select', { class: 'inp', id, onchange: e => set(e.target.value) }, f.options.map(([val, lab]) => h('option', { value: val, selected: v[f.k] === val }, lab)));
+  } else if (f.type === 'textarea') {
+    input = h('textarea', { class: 'inp', id, placeholder: f.ph || '', value: v[f.k] || '', oninput: e => set(e.target.value) });
+  } else {
+    const num = f.type === 'number';
+    input = h('input', { class: 'inp', id, type: f.type || 'text', placeholder: f.ph || '', step: num ? (f.step || 'any') : null, min: f.min, max: f.max, inputMode: num ? 'decimal' : null, autocomplete: f.auto || 'off', value: v[f.k] == null ? '' : v[f.k], oninput: e => set(num ? (e.target.value === '' ? '' : +e.target.value) : e.target.value) });
+  }
+  return h('div', { class: 'f' }, h('label', { htmlFor: id }, f.label), input, f.hint && h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, f.hint));
+}
+function formSheet({ title, fields, values = {}, submit = 'Enregistrer', onSubmit, onDelete, deleteLabel }) {
+  const v = { ...values }, wraps = [];
+  const upd = () => wraps.forEach(([f, w]) => { w.style.display = (!f.showIf || f.showIf(v)) ? '' : 'none'; });
+  return openSheet(title, c => {
+    wraps.length = 0;
+    const form = h('form', {
+      class: 'col', style: { gap: '14px' }, onsubmit: async e => {
+        e.preventDefault();
+        for (const f of fields) if (f.required && (!f.showIf || f.showIf(v)) && (v[f.k] == null || v[f.k] === '')) return toast(`Renseigne « ${f.label} »`);
+        const btn = $('button[type=submit]', form); btn.disabled = true;
+        let r; try { r = await onSubmit(v); } catch (err) { toast(err.message || 'Erreur'); r = false; }
+        btn.disabled = false; if (r !== false) c.close();
+      }
+    });
+    let row = null;
+    for (const f of fields) {
+      const w = fieldEl(f, v, upd); wraps.push([f, w]);
+      if (f.half) { if (!row) { row = h('div', { class: 'frow' }); form.append(row); } row.append(w); if (row.children.length === 2) row = null; }
+      else { row = null; form.append(w); }
+    }
+    form.append(h('button', { class: 'btn pri full', type: 'submit' }, submit));
+    if (onDelete) form.append(h('button', { class: 'btn danger full', type: 'button', onclick: async () => { if (await confirmSheet('Supprimer ?', 'Cette action est définitive.', 'Supprimer', true)) { await onDelete(); c.close(); } } }, deleteLabel || 'Supprimer'));
+    upd(); return form;
+  });
+}
+
+/* ----- fichiers ----- */
+function pickFiles(accept, multiple) {
+  return new Promise(res => {
+    const i = h('input', { type: 'file', accept: accept || '', multiple: !!multiple, style: { display: 'none' }, onchange: () => { res([...i.files]); i.remove(); } });
+    D.body.append(i); i.click();
+  });
+}
+async function shrink(file, max, q) {
+  max = max || (S.demo ? 640 : 1800); q = q || (S.demo ? .7 : .84);
+  try {
+    const bmp = await createImageBitmap(file), s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = D.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(b => r(b || file), 'image/jpeg', q));
+  } catch (e) { return file; }
+}
+async function uploadImages(files) {
+  const out = [];
+  for (let i = 0; i < files.length; i++) {
+    if (files.length > 1) toast(`Envoi ${i + 1}/${files.length}…`);
+    try { const b = await shrink(files[i]); out.push(await B.upload(b, files[i].name.replace(/\.[^.]+$/, '') + '.jpg')); }
+    catch (e) { toast(e.message || 'Envoi impossible'); }
+  }
+  return out;
+}
+
+/* ----- connexion, démarrage ----- */
+function showLogin() {
+  $('#tabs').hidden = true; $('#sheets').replaceChildren();
+  const v = { login: S.demo ? 'mathis' : '', password: S.demo ? 'demo' : '' };
+  const err = h('p', { class: 'small bad', role: 'alert' });
+  const form = h('form', {
+    class: 'glass card login', onsubmit: async e => {
+      e.preventDefault(); err.textContent = '';
+      try { await B.login(v.login, v.password); if (await B.boot()) enter(); else err.textContent = 'Connexion impossible'; }
+      catch (ex) { err.textContent = ex.message; }
+    }
+  },
+    h('div', { class: 'logo' }, 'Nous'),
+    h('p', { class: 'muted' }, 'Notre espace à deux. Agenda, comptes, appart, petits mots.'),
+    h('div', { class: 'f' }, h('label', { htmlFor: 'l_login' }, 'Identifiant'), h('input', { class: 'inp', id: 'l_login', autocomplete: 'username', autocapitalize: 'none', value: v.login, oninput: e => v.login = e.target.value })),
+    h('div', { class: 'f' }, h('label', { htmlFor: 'l_pwd' }, 'Mot de passe'), h('input', { class: 'inp', id: 'l_pwd', type: 'password', autocomplete: 'current-password', value: v.password, oninput: e => v.password = e.target.value })),
+    err,
+    h('button', { class: 'btn pri full', type: 'submit' }, 'Se connecter'),
+    S.demo && h('p', { class: 'small faint center' }, 'Version de démonstration : identifiant « mathis » ou « morgane », mot de passe libre. Les données restent sur cet appareil.'));
+  $('#app').replaceChildren(form);
+}
+function ensureDefaults() {
+  if (couple().seeded) return;
+  B.put('profiles', S.cols.profiles._couple = { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 1200, by: S.me.id, at: Date.now() }).catch(() => { });
+  const def = {
+    folders: [['d_loc', { name: 'Dossier locataire', emoji: '🔑' }], ['d_admin', { name: 'Administratif', emoji: '🗂️' }], ['d_voy', { name: 'Voyages', emoji: '✈️' }]],
+    lists: [['l_courses', { name: 'Courses', emoji: '🛒' }], ['l_restos', { name: 'Restos à tester', emoji: '🍜' }], ['l_films', { name: 'Films et séries', emoji: '🎬' }], ['l_sorties', { name: 'Idées de sorties', emoji: '🎡' }]],
+    wheel: ['Italien', 'Japonais', 'Burger', 'Thaï', 'Libanais', 'Crêpes', 'Pizza', 'On cuisine'].map((t, i) => ['w_' + i, { text: t }])
+  };
+  for (const col in def) for (const [id, d] of def[col]) if (!S.cols[col][id]) B.put(col, S.cols[col][id] = { id, ...d, by: S.me.id, at: Date.now() }).catch(() => { });
+}
+function enter() {
+  for (const c of COLS) S.cols[c] = S.cols[c] || {};
+  ensureDefaults(); genRecurring();
+  const v = location.hash.slice(1); S.view = VIEWS[v] ? v : 'home';
+  render(true);
+  if (!enter.done) {
+    enter.done = true;
+    setInterval(() => { if (!D.hidden) doSync(); }, 15000);
+    D.addEventListener('visibilitychange', () => { if (!D.hidden) doSync(); });
+    if (!S.demo && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { });
+  }
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; });
+async function start() {
+  S.demo = !!window.NOUS_DEMO; B = S.demo ? Demo : Remote;
+  if (await B.boot()) enter(); else showLogin();
+}
+
+</script>
+<script>
+'use strict';
+/* Nous — vues principales : accueil, agenda, comptes, appart. */
+const PLACES = [['Paris', '#7c7aff'], ['Bordeaux', '#ff4d88'], ['Gif-sur-Yvette', '#30c172'], ['Ailleurs', '#ffa726']];
+const placeTag = (p, empty) => h('div', { class: 'small b ell ptag' }, p ? h('i', { class: 'dot', c: pcolor(p) }) : null, p || empty);
+const pcolor = p => (PLACES.find(x => x[0] === p) || [0, '#ff9f0a'])[1];
+const placeOf = (u, d) => { const e = (S.cols.places || {})[d + '_' + u]; return (e && e.place) || profile(u).home || null; };
+const KINDS = [['event', 'Événement', '📌'], ['soiree', 'Soirée', '🥂'], ['service', 'Service', '🍽️'], ['cours', 'Cours', '🎓'], ['travail', 'Travail', '💼'], ['trajet', 'Trajet', '🚄']];
+const kindOf = k => KINDS.find(x => x[0] === k) || KINDS[0];
+const CATS = [['courses', '🛒', 'Courses'], ['resto', '🍝', 'Restos et bars'], ['logement', '🏠', 'Logement'], ['transport', '🚄', 'Transport'], ['sorties', '🎟️', 'Sorties'], ['voyage', '✈️', 'Voyages'], ['abos', '📺', 'Abonnements'], ['cadeaux', '🎁', 'Cadeaux'], ['autre', '💸', 'Autre']];
+const catOf = c => CATS.find(x => x[0] === c) || CATS[CATS.length - 1];
+const FST = [['repere', 'Repéré', '#8e8e93'], ['contacte', 'Contacté', '#0a84ff'], ['visite', 'Visite prévue', '#af52de'], ['dossier', 'Dossier envoyé', '#ff9500'], ['accepte', 'Accepté', '#28a85a'], ['refuse', 'Refusé', '#e0323a']];
+const stOf = s => FST.find(x => x[0] === s) || FST[0];
+const WD = [[1, 'L'], [2, 'M'], [3, 'M'], [4, 'J'], [5, 'V'], [6, 'S'], [0, 'D']];
+const qOf = d => { const Q = window.NOUS_QUESTIONS, [y, m, dd] = d.split('-').map(Number), n = Math.floor((Date.UTC(y, m - 1, dd) - Date.UTC(2026, 0, 1)) / 864e5); return Q[((n % Q.length) + Q.length) % Q.length]; };
+const qText = q => q.t === 'choice' ? `${q.q} ${q.a} ou ${q.b} ?` : q.q;
+const ans = (d, u) => (S.cols.answers || {})[d + '_' + u];
+const sec = (...k) => h('section', { class: 'glass card' }, ...k);
+const eyebrow = (t, right) => h('div', { class: 'row between' }, h('div', { class: 'eyebrow' }, t), right);
+
+/* ================= ACCUEIL ================= */
+function together() {
+  const us = S.users; if (us.length < 2) return null;
+  const t = today();
+  for (let i = 0; i < 180; i++) {
+    const d = addDays(t, i), a = placeOf(us[0].id, d), b = placeOf(us[1].id, d);
+    if (a && a === b) {
+      let end = d;
+      for (let k = 0; k < 90; k++) { const n = addDays(end, 1); if (placeOf(us[0].id, n) === a && placeOf(us[1].id, n) === a) end = n; else break; }
+      return { date: d, place: a, in: i, end };
+    }
+  }
+  return null;
+}
+function balance() { // > 0 : l'autre me doit
+  const me = S.me.id; let b = 0;
+  for (const e of all('expenses')) {
+    const a = +e.amount || 0, sh = shareOf(e);
+    for (const u of S.users) if (u.id !== e.paidBy) { const owe = Math.round(a * sh[u.id] * 100) / 100; if (e.paidBy === me) b += owe; else if (u.id === me) b -= owe; }
+  }
+  for (const s of all('settlements')) { if (s.from === me) b += +s.amount; else if (s.to === me) b -= +s.amount; }
+  return Math.round(b * 100) / 100;
+}
+function shareOf(e) {
+  const r = {};
+  for (const u of S.users) r[u.id] = e.split === 'payer' ? (u.id === e.paidBy ? 1 : 0) : e.split === 'other' ? (u.id === e.paidBy ? 0 : 1) : e.split === 'pct' && e.shares ? (+e.shares[u.id] || 0) / 100 : .5;
+  return r;
+}
+const needsRelance = f => (f.status === 'contacte' || f.status === 'dossier') && (Date.now() - (f.lastActionAt || f.at || Date.now())) / 864e5 >= 5;
+function sendNote(text) {
+  put('notes', { text, to: other().id });
+  toast(S.demo ? `En vrai, ${other().name} reçoit une notification` : `Envoyé à ${other().name} 💌`);
+}
+const QUICK = ['Je pense à toi 💭', 'Tu me manques 🥺', 'Bien rentré 🏠', 'Bonne journée ☀️', 'Bon courage 💪', 'Je t\'aime ❤️', 'Bonne nuit 🌙', 'J\'arrive 🏃'];
+function quickNote() {
+  let txt = '';
+  openSheet(`Un mot pour ${other().name}`, c => [
+    h('div', { class: 'chips' }, QUICK.map(q => h('button', { class: 'chip', onclick: () => { sendNote(q); c.close(); } }, q))),
+    h('div', { class: 'f' }, h('label', { htmlFor: 'qn' }, 'Ou ton message'), h('textarea', { class: 'inp', id: 'qn', placeholder: 'Écris ce que tu veux…', oninput: e => txt = e.target.value })),
+    h('button', { class: 'btn pri full', onclick: () => { if (!txt.trim()) return toast('Écris un petit quelque chose'); sendNote(txt.trim()); c.close(); } }, icon('send'), 'Envoyer'),
+    h('button', { class: 'btn full', onclick: () => { c.close(); scheduleSheet(txt.trim()); } }, '⏰ Programmer pour plus tard')
+  ]);
+}
+VIEWS.home = () => {
+  const me = S.me, o = other(), t = today(), hr = new Date().getHours();
+  const tg = together(), b = balance();
+  const q = qOf(t), mine = ans(t, me.id), his = ans(t, o.id);
+  const qst = !mine ? ['À toi de répondre', 'var(--u1)'] : his ? ['Réponses dévoilées', 'var(--good)'] : [`En attente de ${o.name}`, 'var(--warn)'];
+  const nextEv = all('events').filter(e => e.date >= t).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')))[0];
+  const lastNote = all('notes').sort((a, b) => b.at - a.at)[0];
+  const flats = all('flats'), active = flats.filter(f => !['refuse', 'accepte'].includes(f.status));
+  const visits = flats.filter(f => f.status === 'visite' && f.visitAt && f.visitAt.slice(0, 10) >= t).sort((a, b) => a.visitAt.localeCompare(b.visitAt));
+  const relances = flats.filter(needsRelance);
+  const cd = all('countdowns').filter(c => c.date >= t).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const photos = all('photos').sort((a, b) => (b.date + b.at).localeCompare(a.date + a.at)).slice(0, 4);
+  return [
+    head(`${hr < 5 ? 'Bonne nuit' : hr < 18 ? 'Bonjour' : 'Bonsoir'} ${me.name}`, { sub: cap(fmtD(t, { weekday: 'long', day: 'numeric', month: 'long' })), extra: h('button', { class: 'ibtn', 'aria-label': 'Envoyer un petit mot', onclick: quickNote }, icon('heart')) }),
+    S.demo && h('div', { class: 'demo-flag' }, 'Démo · données d\'exemple'),
+    sec(eyebrow('Où on est aujourd\'hui'),
+      h('div', { class: 'where' }, S.users.map(u => { const p = placeOf(u.id, t); return h('button', { onclick: () => placeSheet(u.id, t) }, avatar(u.id), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, u.name), placeTag(p, 'Ville à préciser'))); })),
+      h('div', { class: 'row' },
+        tg && tg.in > 0 && h('div', { class: 'big num' }, 'J-' + tg.in),
+        h('p', { class: tg ? 'mid grow' : 'muted grow' }, !tg ? 'Indiquez vos villes dans l\'agenda pour voir quand vous vous retrouvez.'
+          : tg.in === 0 ? `Ensemble à ${tg.place}${tg.end > t ? ' jusqu\'à ' + fmtD(tg.end, { weekday: 'long', day: 'numeric', month: 'long' }) : ' aujourd\'hui'}`
+            : `Retrouvailles à ${tg.place}, ${fmtD(tg.date, { weekday: 'long', day: 'numeric', month: 'long' })}`))),
+    moodCard(),
+    h('button', { class: 'glass card tap', onclick: () => go('question') }, eyebrow('Question du jour', h('span', { class: 'pill', c: qst[1] }, qst[0])), h('p', { class: 'mid' }, qText(q))),
+    h('div', { class: 'grid2' },
+      h('button', { class: 'glass card tap', onclick: () => go('comptes') }, h('div', { class: 'eyebrow' }, 'Comptes'),
+        h('div', { class: 'big num ' + (b > 0 ? 'good' : b < 0 ? 'warnc' : '') }, b === 0 ? '0 €' : eur(Math.abs(b))),
+        h('div', { class: 'small muted' }, b === 0 ? 'Vous êtes quittes' : b > 0 ? `${o.name} te doit` : `Tu dois à ${o.name}`)),
+      h('button', { class: 'glass card tap', onclick: () => { if (nextEv) S.cal = { ym: nextEv.date.slice(0, 7), sel: nextEv.date }; go('agenda'); } }, h('div', { class: 'eyebrow' }, 'À venir'),
+        nextEv ? [h('div', { class: 'mid' }, kindOf(nextEv.kind)[2] + ' ' + nextEv.title), h('div', { class: 'small muted' }, cap(rel(nextEv.date)) + (nextEv.time ? ' à ' + nextEv.time : ''))] : h('div', { class: 'muted' }, 'Rien de prévu'))),
+    sec(eyebrow('Petits mots', h('button', { class: 'btn sm', onclick: () => go('mots') }, 'Tout voir')),
+      lastNote ? h('div', { class: 'row' }, avatar(lastNote.by), h('div', { class: 'grow' }, h('div', null, lastNote.text), h('div', { class: 'small faint' }, fmtT(lastNote.at)))) : h('p', { class: 'muted' }, 'Aucun mot pour l\'instant.'),
+      h('button', { class: 'btn pri full', onclick: quickNote }, icon('heart'), `Envoyer un mot à ${o.name}`)),
+    flats.length ? h('button', { class: 'glass card tap', onclick: () => go('appart') }, h('div', { class: 'eyebrow' }, 'Recherche d\'appart'),
+      h('div', { class: 'mid' }, `${active.length} piste${active.length > 1 ? 's' : ''} en cours`),
+      h('div', { class: 'chips' },
+        visits[0] && h('span', { class: 'pill', c: stOf('visite')[2] }, `Visite ${rel(visits[0].visitAt.slice(0, 10))}`),
+        relances.length ? h('span', { class: 'pill', c: 'var(--bad)' }, `${relances.length} relance${relances.length > 1 ? 's' : ''} à faire`) : null)) : null,
+    flashCard(),
+    cd && h('button', { class: 'glass card tap', onclick: () => go('rebours') }, h('div', { class: 'cd' }, h('div', { class: 'j' }, 'J-' + daysBetween(t, cd.date)), h('div', { class: 'grow' }, h('div', { class: 'eyebrow' }, 'Compte à rebours'), h('div', { class: 'mid' }, (cd.emoji || '🎉') + ' ' + cd.title), h('div', { class: 'small muted' }, cap(fmtD(cd.date, { weekday: 'long', day: 'numeric', month: 'long' })))))),
+    photos.length ? h('button', { class: 'glass card tap', onclick: () => go('photos') }, h('div', { class: 'eyebrow' }, 'Dernières photos'), h('div', { class: 'strip' }, photos.map(p => h('img', { src: B.fileUrl(p.fileId), alt: p.caption || 'Photo', loading: 'lazy' })))) : null
+  ];
+};
+
+/* ================= AGENDA ================= */
+function placeSheet(who, date) {
+  const cur = (S.cols.places || {})[date + '_' + who];
+  const known = cur && PLACES.some(p => p[0] === cur.place);
+  formSheet({
+    title: 'Où es-tu ?', submit: 'Enregistrer',
+    values: { who, place: cur ? (known ? cur.place : '__other') : (profile(who).home || 'Paris'), custom: cur && !known ? cur.place : '', from: date, to: date },
+    fields: [
+      { k: 'who', label: 'Pour', type: 'seg', options: S.users.map(u => [u.id, u.id === S.me.id ? 'Moi' : u.name]) },
+      { k: 'place', label: 'Ville', type: 'select', options: [...PLACES.slice(0, 3).map(p => [p[0], p[0]]), ['__other', 'Autre ville…'], ['__clear', 'Revenir à la ville habituelle']] },
+      { k: 'custom', label: 'Nom de la ville', ph: 'Lyon, Biarritz…', showIf: v => v.place === '__other', required: true },
+      { k: 'from', label: 'Du', type: 'date', half: true, required: true },
+      { k: 'to', label: 'Au', type: 'date', half: true, required: true },
+      { k: 'days', label: 'Jours concernés', type: 'multi', options: WD, hint: 'Pratique pour un rythme régulier : par exemple du lundi au mercredi à Bordeaux pendant deux mois.' }
+    ],
+    onSubmit: async v => {
+      if (v.to < v.from) { toast('La date de fin est avant le début'); return false; }
+      const docs = [], dels = [];
+      for (let d = v.from, n = 0; d <= v.to && n < 400; d = addDays(d, 1), n++) {
+        if (!v.days.includes(pd(d).getDay())) continue;
+        if (v.place === '__clear') dels.push(d + '_' + v.who);
+        else docs.push({ id: d + '_' + v.who, date: d, user: v.who, place: v.place === '__other' ? v.custom.trim() : v.place });
+      }
+      if (docs.length) await putMany('places', docs);
+      for (const id of dels) if (S.cols.places[id]) await del('places', id);
+    }
+  });
+}
+const PRESETS = { midi: ['Service du midi', '11:30', '15:00'], soir: ['Service du soir', '18:30', '23:30'], coupure: ['Coupure (midi et soir)', '11:30', '23:30'], repos: ['Repos', '', ''] };
+function eventSheet(ev) {
+  const isNew = !ev.id;
+  formSheet({
+    title: isNew ? 'Nouvel événement' : 'Modifier', values: { kind: 'event', who: 'both', ...ev },
+    fields: [
+      { k: 'kind', label: 'Type', type: 'select', options: KINDS.map(k => [k[0], k[2] + ' ' + k[1]]) },
+      { k: 'preset', label: 'Horaires du service', type: 'select', showIf: v => v.kind === 'service', options: [['', 'Je saisis les horaires'], ['midi', 'Midi (11:30 – 15:00)'], ['soir', 'Soir (18:30 – 23:30)'], ['coupure', 'Coupure (11:30 – 23:30)'], ['repos', 'Repos']] },
+      { k: 'title', label: 'Titre', ph: 'Dîner chez Léa, concert, TGV…', showIf: v => !(v.kind === 'service' && v.preset) },
+      { k: 'who', label: 'Pour qui', type: 'seg', options: [[S.me.id, 'Moi'], [other().id, other().name], ['both', 'Nous deux']] },
+      { k: 'date', label: 'Date', type: 'date', required: true },
+      { k: 'time', label: 'Début', type: 'time', half: true, showIf: v => !(v.kind === 'service' && v.preset) },
+      { k: 'endTime', label: 'Fin', type: 'time', half: true, showIf: v => !(v.kind === 'service' && v.preset) },
+      isNew && { k: 'until', label: 'Répéter jusqu\'au (facultatif)', type: 'date' },
+      isNew && { k: 'days', label: 'Jours de répétition', type: 'multi', options: WD, showIf: v => !!v.until },
+      { k: 'note', label: 'Note', type: 'textarea', ph: 'Adresse, heure du train, à ne pas oublier…' }
+    ].filter(Boolean),
+    onSubmit: async v => {
+      const d = { ...v }; const p = d.kind === 'service' && PRESETS[d.preset];
+      if (p) { d.title = p[0]; d.time = p[1]; d.endTime = p[2]; }
+      if (!d.title || !d.title.trim()) { toast('Donne un titre'); return false; }
+      const until = d.until, days = d.days; delete d.until; delete d.days;
+      if (isNew && until && until > d.date) {
+        const docs = [];
+        for (let x = d.date, n = 0; x <= until && n < 200; x = addDays(x, 1), n++) if (days.includes(pd(x).getDay())) docs.push({ ...d, date: x });
+        await putMany('events', docs);
+      } else await put('events', d);
+      S.cal = { ym: d.date.slice(0, 7), sel: d.date };
+    },
+    onDelete: isNew ? null : () => del('events', ev.id)
+  });
+}
+function eventRow(e) {
+  return h('button', { class: 'item', onclick: () => eventSheet(e) },
+    h('span', { class: 'emo' }, kindOf(e.kind)[2]),
+    h('div', { class: 'grow' }, h('div', { class: 'b ell' }, e.title), h('div', { class: 'small muted ell' }, [e.time ? e.time + (e.endTime ? ' – ' + e.endTime : '') : 'Toute la journée', e.note].filter(Boolean).join(' · '))),
+    e.who === 'both' ? h('div', { class: 'row', style: { gap: '0' } }, S.users.map(u => avatar(u.id, true))) : avatar(e.who, true));
+}
+VIEWS.agenda = () => {
+  const c = S.cal || (S.cal = { ym: today().slice(0, 7), sel: today() });
+  const [y, m] = c.ym.split('-').map(Number), first = new Date(y, m - 1, 1), start = addDays(iso(first), -((first.getDay() + 6) % 7)), t = today();
+  const byDay = {}; for (const e of all('events')) (byDay[e.date] = byDay[e.date] || []).push(e);
+  const shift = n => { const d = new Date(y, m - 1 + n, 1); S.cal = { ym: iso(d).slice(0, 7), sel: iso(d).slice(0, 7) === t.slice(0, 7) ? t : iso(d) }; render(true); };
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const d = addDays(start, i); if (i === 35 && d.slice(0, 7) !== c.ym) break;
+    const evs = (byDay[d] || []).slice(0, 3);
+    cells.push(h('button', { class: 'day' + (d.slice(0, 7) !== c.ym ? ' out' : '') + (d === t ? ' today' : '') + (d === c.sel ? ' sel' : ''), 'aria-label': fmtD(d, { weekday: 'long', day: 'numeric', month: 'long' }), onclick: () => { S.cal.sel = d; if (d.slice(0, 7) !== c.ym) S.cal.ym = d.slice(0, 7); render(true); } },
+      h('span', { class: 'dn' }, +d.slice(8)),
+      h('span', { class: 'bar' }, S.users.map(u => { const p = placeOf(u.id, d); return h('i', { c: p ? pcolor(p) : null }); })),
+      h('span', { class: 'evs' }, evs.map(e => h('i', { c: e.who === 'both' ? 'var(--ink)' : ucolor(e.who) })))));
+  }
+  const sel = c.sel, evs = (byDay[sel] || []).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  const segs = []; // périodes dans la même ville, sur 60 jours
+  for (let i = 0, curSeg = null; i < 60; i++) {
+    const d = addDays(t, i), a = placeOf(S.users[0].id, d), b = S.users[1] && placeOf(S.users[1].id, d);
+    if (a && a === b) { if (curSeg && curSeg.place === a) curSeg.to = d; else segs.push(curSeg = { from: d, to: d, place: a }); } else curSeg = null;
+  }
+  const usedPlaces = [...new Set(cells.length ? S.users.flatMap(u => Array.from({ length: 31 }, (_, i) => placeOf(u.id, addDays(iso(first), i)))) : [])].filter(Boolean);
+  return [
+    head('Agenda', { add: () => eventSheet({ date: sel }), addLabel: 'Ajouter un événement', extra: h('button', { class: 'ibtn', 'aria-label': 'Indiquer une ville', onclick: () => placeSheet(S.me.id, sel) }, icon('pin')) }),
+    sec(
+      h('div', { class: 'row between' }, h('button', { class: 'ibtn', 'aria-label': 'Mois précédent', onclick: () => shift(-1) }, icon('back')), h('div', { class: 'mid' }, cap(fmtD(iso(first), { month: 'long', year: 'numeric' }))), h('button', { class: 'ibtn', 'aria-label': 'Mois suivant', onclick: () => shift(1) }, icon('next'))),
+      h('div', { class: 'cal' }, ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(d => h('div', { class: 'dow' }, d)), cells),
+      h('div', { class: 'legend' }, h('span', null, `Barre : ${S.users.map(u => u.name).join(' | ')}`), usedPlaces.map(p => h('span', null, h('i', { class: 'dot', c: pcolor(p) }), p)))),
+    sec(eyebrow(cap(fmtD(sel, { weekday: 'long', day: 'numeric', month: 'long' })), h('span', { class: 'small faint' }, cap(rel(sel)))),
+      h('div', { class: 'where' }, S.users.map(u => { const p = placeOf(u.id, sel); return h('button', { onclick: () => placeSheet(u.id, sel) }, avatar(u.id, true), h('div', { class: 'grow small' }, h('div', { class: 'ell' }, u.name), placeTag(p, 'À préciser'))); })),
+      evs.length ? h('div', { class: 'list' }, evs.map(eventRow)) : h('div', { class: 'empty' }, 'Rien de prévu ce jour-là.'),
+      h('button', { class: 'btn full', onclick: () => eventSheet({ date: sel }) }, icon('plus'), 'Ajouter')),
+    sec(eyebrow('Dans la même ville'),
+      segs.length ? h('div', { class: 'list' }, segs.slice(0, 5).map(s => { const n = daysBetween(s.from, s.to) + 1; return h('div', { class: 'item' }, h('i', { class: 'dot', c: pcolor(s.place) }), h('div', { class: 'grow' }, h('div', { class: 'b' }, s.from === s.to ? cap(fmtD(s.from)) : `${cap(fmtD(s.from))} → ${fmtD(s.to)}`), h('div', { class: 'small muted' }, s.place)), h('span', { class: 'pill plain' }, n + (n > 1 ? ' jours' : ' jour'))); }))
+        : h('div', { class: 'empty' }, 'Aucune période commune sur les deux prochains mois.'))
+  ];
+};
+
+/* ================= COMPTES ================= */
+function splitFields() {
+  const o = other(), u0 = S.users[0];
+  return [
+    { k: 'paidBy', label: 'Payé par', type: 'seg', options: S.users.map(u => [u.id, u.id === S.me.id ? 'Moi' : u.name]) },
+    { k: 'split', label: 'Répartition', type: 'select', options: [['half', 'Moitié-moitié'], ['pct', 'Au prorata'], ['other', 'Avancé pour l\'autre (100 %)'], ['payer', 'Dépense perso (ne compte pas)']] },
+    { k: 'pct', label: `Part de ${u0.name} (%)`, type: 'number', min: 0, max: 100, showIf: v => v.split === 'pct', required: true, hint: `Le reste est pour ${S.users[1] ? S.users[1].name : o.name}.` },
+    { k: 'cat', label: 'Catégorie', type: 'select', options: CATS.map(c => [c[0], c[1] + ' ' + c[2]]) }
+  ];
+}
+function packSplit(d) {
+  if (d.split === 'pct') { const p = Math.max(0, Math.min(100, +d.pct || 0)); d.shares = { [S.users[0].id]: p }; if (S.users[1]) d.shares[S.users[1].id] = 100 - p; } else delete d.shares;
+  d.amount = Math.round((+d.amount || 0) * 100) / 100; return d;
+}
+function expenseSheet(e) {
+  const isNew = !e.id, cp = couple();
+  formSheet({
+    title: isNew ? 'Nouvelle dépense' : 'Modifier la dépense',
+    values: { paidBy: S.me.id, split: cp.defaultSplit || 'half', pct: cp.pct == null ? 50 : cp.pct, cat: 'courses', date: today(), ...e, ...(e.shares ? { pct: e.shares[S.users[0].id] } : {}) },
+    fields: [{ k: 'label', label: 'Quoi', ph: 'Courses, resto, billets de train…', required: true }, { k: 'amount', label: 'Montant (€)', type: 'number', step: '0.01', min: 0, half: true, required: true }, { k: 'date', label: 'Date', type: 'date', half: true, required: true }, ...splitFields()],
+    onSubmit: v => { if (!(+v.amount > 0)) { toast('Indique un montant'); return false; } return put('expenses', packSplit({ ...v })); },
+    onDelete: isNew ? null : () => del('expenses', e.id)
+  });
+}
+function recurringSheet() {
+  const edit = r => formSheet({
+    title: r.id ? 'Modifier' : 'Dépense récurrente',
+    values: { paidBy: S.me.id, split: couple().defaultSplit || 'half', pct: couple().pct == null ? 50 : couple().pct, cat: 'logement', day: 1, ...r },
+    fields: [{ k: 'label', label: 'Quoi', ph: 'Loyer, Netflix, électricité…', required: true }, { k: 'amount', label: 'Montant (€)', type: 'number', step: '0.01', half: true, required: true }, { k: 'day', label: 'Jour du mois', type: 'number', min: 1, max: 28, half: true, required: true }, ...splitFields()],
+    onSubmit: async v => { await put('recurring', packSplit({ ...v })); genRecurring(); ctl.refresh(); },
+    onDelete: r.id ? async () => { await del('recurring', r.id); ctl.refresh(); } : null
+  });
+  const ctl = openSheet('Dépenses récurrentes', () => {
+    const rs = all('recurring').sort((a, b) => a.day - b.day);
+    return [
+      h('p', { class: 'muted small' }, 'Ajoutées automatiquement chaque mois, le jour indiqué.'),
+      rs.length ? h('div', { class: 'list' }, rs.map(r => h('button', { class: 'item', onclick: () => edit(r) }, h('span', { class: 'emo' }, catOf(r.cat)[1]), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, r.label), h('div', { class: 'small muted' }, `Le ${r.day} · payé par ${nameOf(r.paidBy)}`)), h('span', { class: 'amt' }, eur(r.amount))))) : h('div', { class: 'empty' }, 'Aucune pour l\'instant.'),
+      h('button', { class: 'btn pri full', onclick: () => edit({}) }, icon('plus'), 'Ajouter')
+    ];
+  });
+}
+function genRecurring() {
+  if (!S.me) return;
+  const t = today(), ym = t.slice(0, 7), dn = +t.slice(8);
+  for (const r of all('recurring')) {
+    if (r.last === ym || dn < (+r.day || 1)) continue;
+    const id = `r_${r.id}_${ym}`; r.last = ym; B.put('recurring', r).catch(() => { });
+    if (!S.cols.expenses[id]) { const e = { id, label: r.label, amount: r.amount, paidBy: r.paidBy, split: r.split, shares: r.shares, cat: r.cat, date: `${ym}-${pad(+r.day || 1)}`, rec: r.id, by: r.by, at: Date.now() }; S.cols.expenses[id] = e; B.put('expenses', e).catch(() => { }); }
+  }
+}
+async function settle() {
+  const b = balance(), o = other(); if (!b) return;
+  const from = b > 0 ? o.id : S.me.id, to = b > 0 ? S.me.id : o.id;
+  if (await confirmSheet('Régulariser les comptes', `${nameOf(from)} rembourse ${eur(Math.abs(b))} à ${nameOf(to)}. Le solde repart de zéro et l'historique est conservé.`, 'C\'est remboursé'))
+    put('settlements', { from, to, amount: Math.abs(b), date: today() });
+}
+VIEWS.comptes = () => {
+  const b = balance(), o = other(), ym = (S.month || today()).slice(0, 7);
+  const exp = all('expenses'), month = exp.filter(e => e.date && e.date.slice(0, 7) === ym && e.split !== 'payer');
+  const total = month.reduce((s, e) => s + (+e.amount || 0), 0);
+  const cost = {}; for (const u of S.users) cost[u.id] = month.reduce((s, e) => s + (+e.amount || 0) * shareOf(e)[u.id], 0);
+  const byCat = {}; for (const e of month) byCat[e.cat] = (byCat[e.cat] || 0) + (+e.amount || 0);
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]), maxCat = cats.length ? cats[0][1] : 1;
+  const feed = [...exp.map(e => ({ t: 'e', d: e.date, at: e.at, e })), ...all('settlements').map(s => ({ t: 's', d: s.date, at: s.at, s }))].sort((a, b) => (b.d + b.at).localeCompare(a.d + a.at)).slice(0, 80);
+  let lastM = '';
+  const mshift = n => { const d = pd(ym + '-01'); d.setMonth(d.getMonth() + n); S.month = iso(d); render(true); };
+  return [
+    head('Comptes', { add: () => expenseSheet({}), addLabel: 'Ajouter une dépense', extra: h('button', { class: 'ibtn', 'aria-label': 'Dépenses récurrentes', onclick: recurringSheet }, icon('rep')) }),
+    sec(h('div', { class: 'row' }, avatar(b >= 0 ? o.id : S.me.id), h('div', { class: 'grow' },
+      h('div', { class: 'small muted' }, b === 0 ? 'Rien à rembourser' : b > 0 ? `${o.name} te doit` : `Tu dois à ${o.name}`),
+      h('div', { class: 'big num ' + (b > 0 ? 'good' : b < 0 ? 'warnc' : '') }, b === 0 ? 'Vous êtes quittes' : eur(Math.abs(b))))),
+      b !== 0 && h('button', { class: 'btn full', onclick: settle }, 'Régulariser')),
+    sec(h('div', { class: 'row between' }, h('button', { class: 'ibtn', 'aria-label': 'Mois précédent', onclick: () => mshift(-1) }, icon('back')), h('div', { class: 'center' }, h('div', { class: 'eyebrow' }, cap(fmtD(ym + '-01', { month: 'long', year: 'numeric' }))), h('div', { class: 'big num' }, eur(total))), h('button', { class: 'ibtn', 'aria-label': 'Mois suivant', onclick: () => mshift(1) }, icon('next'))),
+      h('div', { class: 'row', style: { justifyContent: 'space-around' } }, S.users.map(u => h('div', { class: 'row' }, avatar(u.id, true), h('div', null, h('div', { class: 'tiny muted' }, 'Part de ' + u.name), h('div', { class: 'b num' }, eur(cost[u.id])))))),
+      cats.length ? h('div', { class: 'bars' }, cats.map(([c, v]) => h('div', { class: 'barrow' }, h('span', null, catOf(c)[1]), h('div', null, h('div', { class: 'small' }, catOf(c)[2]), h('div', { class: 'track' }, h('i', { style: { width: Math.max(4, v / maxCat * 100) + '%' } }))), h('span', { class: 'b num small' }, eur0(v))))) : h('div', { class: 'empty' }, 'Aucune dépense commune ce mois-ci.')),
+    sec(eyebrow('Historique'),
+      feed.length ? h('div', { class: 'list' }, feed.map(x => {
+        const mm = x.d.slice(0, 7), sepEl = mm !== lastM ? h('div', { class: 'tiny faint b', style: { padding: '10px 0 2px', textTransform: 'uppercase' } }, fmtD(mm + '-01', { month: 'long', year: 'numeric' })) : null; lastM = mm;
+        if (x.t === 's') return [sepEl, h('div', { class: 'item' }, h('span', { class: 'emo' }, '✅'), h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Comptes régularisés'), h('div', { class: 'small muted' }, `${nameOf(x.s.from)} → ${nameOf(x.s.to)} · ${fmtD(x.d)}`)), h('span', { class: 'amt good' }, eur(x.s.amount)))];
+        const e = x.e, sp = e.split === 'payer' ? 'perso' : e.split === 'other' ? 'avancé' : e.split === 'pct' && e.shares ? S.users.map(u => e.shares[u.id]).join('/') : '50/50';
+        return [sepEl, h('button', { class: 'item', onclick: () => expenseSheet(e) }, h('span', { class: 'emo' }, catOf(e.cat)[1]), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, e.label), h('div', { class: 'small muted ell' }, `${nameOf(e.paidBy)} · ${fmtD(e.date)} · ${sp}${e.rec ? ' · mensuel' : ''}`)), h('span', { class: 'amt' }, eur(e.amount)))];
+      })) : h('div', { class: 'empty' }, 'Ajoutez votre première dépense avec le bouton +.'))
+  ];
+};
+
+/* ================= APPART ================= */
+const flatTotal = f => (+f.rent || 0) + (+f.charges || 0);
+const fmtVisit = v => cap(fmtD(v.slice(0, 10))) + (v.length > 10 ? ' à ' + v.slice(11, 16) : '');
+function flatForm(f) {
+  const isNew = !f.id, vals = { status: 'repere', ...f };
+  for (const u of S.users) vals['c_' + u.id] = (f.commute || {})[u.id];
+  formSheet({
+    title: isNew ? 'Nouvel appart' : 'Modifier', values: vals,
+    fields: [
+      { k: 'title', label: 'Nom', ph: 'T2 rue Monge, 45 m² Montrouge…', required: true },
+      { k: 'url', label: 'Lien de l\'annonce', type: 'url', ph: 'https://…' },
+      { k: 'rent', label: 'Loyer hors charges (€)', type: 'number', half: true }, { k: 'charges', label: 'Charges (€)', type: 'number', half: true },
+      { k: 'surface', label: 'Surface (m²)', type: 'number', half: true }, { k: 'area', label: 'Quartier / ville', ph: 'Paris 14e', half: true },
+      ...S.users.map(u => ({ k: 'c_' + u.id, label: `Trajet travail ${u.name} (min)`, type: 'number', half: true })),
+      { k: 'avail', label: 'Disponible le', type: 'date', half: true }, { k: 'contact', label: 'Contact', ph: 'Agence, nom, téléphone', half: true },
+      { k: 'notes', label: 'Notes', type: 'textarea', ph: 'Étage, ascenseur, meublé ou non, ce qui plaît, ce qui coince…' }
+    ],
+    onSubmit: v => {
+      const d = { ...v }; d.commute = {};
+      for (const u of S.users) { if (d['c_' + u.id] !== '' && d['c_' + u.id] != null) d.commute[u.id] = +d['c_' + u.id]; delete d['c_' + u.id]; }
+      if (isNew) { d.lastActionAt = Date.now(); d.history = [{ s: 'repere', at: Date.now(), by: S.me.id }]; }
+      return put('flats', d);
+    }
+  });
+}
+function flatSheet(id) {
+  const ctl = openSheet((S.cols.flats[id] || {}).title || 'Appart', () => {
+    const f = S.cols.flats[id]; if (!f) return h('div', { class: 'empty' }, 'Cette fiche a été supprimée.');
+    const me = S.me.id, o = other(), tot = flatTotal(f), bud = +couple().budget || 0;
+    const save = async patch => { Object.assign(f, patch); await put('flats', f); ctl.refresh(); };
+    const log = s => [...(f.history || []), { s, at: Date.now(), by: me }];
+    const setStatus = st => {
+      if (st === f.status) return;
+      if (st === 'visite') return formSheet({ title: 'Date de la visite', values: { v: f.visitAt || today() + 'T18:00' }, fields: [{ k: 'v', label: 'Jour et heure', type: 'datetime-local', required: true }], onSubmit: v => save({ status: st, visitAt: v.v, lastActionAt: Date.now(), history: log(st) }) });
+      save({ status: st, lastActionAt: Date.now(), history: log(st) });
+    };
+    const addPhotos = async () => { const up = await uploadImages(await pickFiles('image/*', true)); if (up.length) save({ photos: [...(f.photos || []), ...up.map(u => u.id)] }); };
+    const fact = (l, v) => v ? h('div', null, h('div', { class: 'tiny muted' }, l), h('div', { class: 'b num' }, v)) : null;
+    const days = Math.floor((Date.now() - (f.lastActionAt || f.at)) / 864e5);
+    return [
+      (f.photos || []).length ? h('div', { class: 'chips scroll' }, f.photos.map(p => h('img', { src: B.fileUrl(p), alt: 'Photo de l\'appart', style: { height: '150px', width: 'auto', borderRadius: '16px', flex: 'none' } }))) : null,
+      h('div', { class: 'row wrap', style: { gap: '18px' } }, fact('Loyer charges comprises', tot ? eur0(tot) : ''), fact('Surface', f.surface ? f.surface + ' m²' : ''), fact('Prix au m²', f.surface && tot ? Math.round(tot / f.surface) + ' €' : ''), fact('Secteur', f.area), fact('Disponible', f.avail ? fmtD(f.avail) : ''), ...S.users.map(u => fact('Trajet ' + u.name, (f.commute || {})[u.id] != null ? f.commute[u.id] + ' min' : ''))),
+      bud && tot ? h('span', { class: 'pill', c: tot > bud ? 'var(--bad)' : 'var(--good)', style: { alignSelf: 'flex-start' } }, tot > bud ? `${eur0(tot - bud)} au-dessus du budget` : `Dans le budget (${eur0(bud)})`) : null,
+      f.url && h('a', { class: 'btn full', href: f.url, target: '_blank', rel: 'noopener noreferrer' }, 'Voir l\'annonce ↗'),
+      f.contact && h('p', { class: 'small muted' }, 'Contact : ' + f.contact),
+      h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Où on en est'), h('div', { class: 'chips' }, FST.map(s => h('button', { class: 'chip' + (f.status === s[0] ? ' on' : ''), onclick: () => setStatus(s[0]) }, s[1])))),
+      f.status === 'visite' && f.visitAt && h('p', { class: 'b' }, '🔑 Visite : ' + fmtVisit(f.visitAt)),
+      (f.status === 'contacte' || f.status === 'dossier') && h('div', { class: 'row between' }, h('span', { class: 'small ' + (needsRelance(f) ? 'bad b' : 'muted') }, days < 1 ? 'Dernière action aujourd\'hui' : `Sans nouvelles depuis ${days} jour${days > 1 ? 's' : ''}`), h('button', { class: 'btn sm', onclick: () => save({ lastActionAt: Date.now(), history: log('relance') }) }, 'J\'ai relancé')),
+      h('hr', { class: 'sep' }),
+      h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Ma note'), h('div', { class: 'stars' }, [1, 2, 3, 4, 5].map(n => h('button', { class: ((f.ratings || {})[me] || 0) >= n ? 'on' : '', 'aria-label': n + ' sur 5', onclick: () => save({ ratings: { ...(f.ratings || {}), [me]: n } }) }, '★')))),
+      h('div', { class: 'f' }, h('label', { htmlFor: 'f_op' }, 'Mon avis'), h('textarea', { class: 'inp', id: 'f_op', placeholder: 'Ce que j\'en pense…', value: (f.opinions || {})[me] || '', onchange: e => save({ opinions: { ...(f.opinions || {}), [me]: e.target.value } }) })),
+      ((f.ratings || {})[o.id] || (f.opinions || {})[o.id]) ? h('div', { class: 'row', style: { alignItems: 'flex-start' } }, avatar(o.id, true), h('div', { class: 'grow' }, h('div', { class: 'b' }, `${o.name} ${(f.ratings || {})[o.id] ? '★'.repeat(f.ratings[o.id]) : ''}`), h('div', { class: 'small muted' }, (f.opinions || {})[o.id] || 'Pas encore d\'avis écrit'))) : h('p', { class: 'small faint' }, `${o.name} n'a pas encore donné son avis.`),
+      f.notes && h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Notes'), h('p', { style: { whiteSpace: 'pre-wrap' } }, f.notes)),
+      h('hr', { class: 'sep' }),
+      h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Suivi'), h('div', { class: 'tl' }, (f.history || []).slice().reverse().map(x => h('div', { c: x.s === 'relance' ? 'var(--warn)' : stOf(x.s)[2] }, h('span', { class: 'b' }, x.s === 'relance' ? 'Relance' : stOf(x.s)[1]), h('span', { class: 'muted small' }, ` · ${nameOf(x.by)} · ${fmtT(x.at)}`))))),
+      h('div', { class: 'frow' }, h('button', { class: 'btn', onclick: addPhotos }, '📷 Photos'), h('button', { class: 'btn', onclick: () => { ctl.close(); flatForm(f); } }, 'Modifier')),
+      h('button', { class: 'btn danger full', onclick: async () => { if (await confirmSheet('Supprimer cette fiche ?', 'Les notes et le suivi seront perdus.', 'Supprimer', true)) { for (const p of f.photos || []) B.delFile(p).catch(() => { }); ctl.close(); del('flats', id); } } }, 'Supprimer la fiche')
+    ];
+  });
+}
+function compareSheet() {
+  const fs = all('flats').filter(f => f.status !== 'refuse').sort((a, b) => flatTotal(a) - flatTotal(b)), bud = +couple().budget || 0;
+  const avg = f => { const r = Object.values(f.ratings || {}).filter(Boolean); return r.length ? (r.reduce((a, b) => a + b, 0) / r.length).toFixed(1).replace('.', ',') + ' ★' : '–'; };
+  openSheet('Comparer', () => fs.length ? h('div', { class: 'scrollx' }, h('table', { class: 'cmp' },
+    h('thead', null, h('tr', null, ['Appart', 'Loyer CC', 'm²', '€/m²', ...S.users.map(u => '🚇 ' + u.name), 'Note', 'Étape'].map(t => h('th', null, t)))),
+    h('tbody', null, fs.map(f => { const t = flatTotal(f); return h('tr', null, h('td', { class: 'b' }, f.title), h('td', { class: bud && t > bud ? 'bad b' : 'b' }, t ? eur0(t) : '–'), h('td', null, f.surface || '–'), h('td', null, f.surface && t ? Math.round(t / f.surface) : '–'), ...S.users.map(u => h('td', null, (f.commute || {})[u.id] != null ? f.commute[u.id] + ' min' : '–')), h('td', null, avg(f)), h('td', null, stOf(f.status)[1])); }))))
+    : h('div', { class: 'empty' }, 'Ajoutez des apparts pour les comparer.'));
+}
+VIEWS.appart = () => {
+  const flats = all('flats'), flt = S.flatFilter || 'actifs', bud = +couple().budget || 0;
+  const count = s => flats.filter(f => f.status === s).length;
+  const shown = flats.filter(f => flt === 'actifs' ? f.status !== 'refuse' : flt === 'relance' ? needsRelance(f) : f.status === flt)
+    .sort((a, b) => (needsRelance(b) - needsRelance(a)) || (b.at || 0) - (a.at || 0));
+  const nRel = flats.filter(needsRelance).length;
+  const chip = (id, lab, n) => h('button', { class: 'chip' + (flt === id ? ' on' : ''), onclick: () => { S.flatFilter = id; render(true); } }, lab, n != null && h('span', { class: 'n' }, n));
+  return [
+    head('Appart', { add: () => flatForm({}), addLabel: 'Ajouter un appart', sub: bud ? `Budget max ${eur0(bud)} charges comprises` : null, extra: h('button', { class: 'ibtn', 'aria-label': 'Comparer', onclick: compareSheet }, icon('cmp')) }),
+    h('div', { class: 'chips scroll' }, chip('actifs', 'En cours', flats.filter(f => f.status !== 'refuse').length), nRel ? chip('relance', 'À relancer', nRel) : null, FST.map(s => chip(s[0], s[1], count(s[0])))),
+    shown.length ? shown.map(f => {
+      const st = stOf(f.status), tot = flatTotal(f), img = (f.photos || [])[0];
+      return h('button', { class: 'glass card tap flat', onclick: () => flatSheet(f.id) },
+        h('div', { class: 'ph' }, img ? h('img', { src: B.fileUrl(img), alt: '', loading: 'lazy' }) : '🏠', h('span', { class: 'pill', c: st[2] }, st[1]), needsRelance(f) && h('span', { class: 'pill alert', c: 'var(--bad)' }, 'Relance à faire')),
+        h('div', { class: 'in' },
+          h('div', { class: 'row between' }, h('div', { class: 'mid ell grow' }, f.title), tot ? h('div', { class: 'amt ' + (bud && tot > bud ? 'bad' : '') }, eur0(tot)) : null),
+          h('div', { class: 'small muted' }, [f.surface && f.surface + ' m²', f.area, f.surface && tot && Math.round(tot / f.surface) + ' €/m²'].filter(Boolean).join(' · ')),
+          h('div', { class: 'row wrap small', style: { gap: '6px 14px' } },
+            S.users.map(u => (f.commute || {})[u.id] != null ? h('span', { class: 'row', style: { gap: '5px' } }, avatar(u.id, true), f.commute[u.id] + ' min') : null),
+            S.users.map(u => (f.ratings || {})[u.id] ? h('span', { class: 'row', style: { gap: '4px' } }, avatar(u.id, true), h('span', { style: { color: '#ffb400' } }, '★'), f.ratings[u.id]) : null)),
+          f.status === 'visite' && f.visitAt ? h('div', { class: 'small b' }, '🔑 Visite ' + fmtVisit(f.visitAt)) : null));
+    }) : sec(h('div', { class: 'empty' }, flats.length ? 'Aucun appart à cette étape.' : 'Ajoutez le premier appart repéré avec le bouton +.'))
+  ];
+};
+
+</script>
+<script>
+'use strict';
+/* Nous — vues secondaires : petits mots, question du jour, photos, documents, listes, envies, comptes à rebours, roue, réglages. */
+VIEWS.plus = () => {
+  const t = today(), me = S.me.id;
+  const tiles = [
+    ['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['photos', '📸', 'Photos'],
+    ['docs', '🗂️', 'Documents'], ['listes', '✅', 'Listes', all('items').filter(i => !i.done).length], ['envies', '🎁', 'Envies'],
+    ['histoire', '📖', 'Notre histoire'], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['rebours', '⏳', 'Comptes à rebours'],
+    ['roue', '🎡', 'La roue'], ['reglages', '⚙️', 'Réglages']
+  ];
+  return [head('Plus'), h('div', { class: 'tiles' }, tiles.map(([id, e, lab, n]) => h('button', { class: 'glass tile', onclick: () => go(id) }, h('span', { class: 'e' }, e), lab, n ? h('span', { class: 'badge' }, n) : null)))];
+};
+
+/* ----- petits mots ----- */
+VIEWS.mots = () => {
+  const notes = all('notes').sort((a, b) => b.at - a.at).slice(0, 80);
+  return [
+    head('Petits mots', { back: 'plus' }),
+    sec(h('div', { class: 'chips' }, QUICK.map(q => h('button', { class: 'chip', onclick: () => sendNote(q) }, q))),
+      inlineAdd('mot_in', `Un mot pour ${other().name}…`, sendNote, 'send'),
+      h('p', { class: 'small faint' }, `${other().name} reçoit une notification sur son téléphone.`)),
+    schedCard(),
+    notes.length ? h('div', { class: 'thread' }, notes.map(n => h('div', { class: 'bub' + (n.by === S.me.id ? ' me' : '') }, n.text, h('time', null, fmtT(n.at))))) : sec(h('div', { class: 'empty' }, 'Envoie le premier mot.'))
+  ];
+};
+
+/* ----- question du jour ----- */
+function streak() {
+  const both = d => S.users.every(u => ans(d, u.id));
+  let n = 0, d = today(); if (!both(d)) d = addDays(d, -1);
+  while (both(d) && n < 999) { n++; d = addDays(d, -1); }
+  return n;
+}
+const ansText = (q, a) => !a ? '' : a.hidden ? '🔒 Réponse cachée' : q.t === 'who' ? nameOf(a.text) : q.t === 'choice' ? (a.text === 'a' ? q.a : q.b) : a.text;
+VIEWS.question = () => {
+  const t = today(), me = S.me.id, o = other(), q = qOf(t), mine = ans(t, me), his = ans(t, o.id), st = streak();
+  const answer = text => put('answers', { id: t + '_' + me, date: t, user: me, text });
+  let input;
+  if (!mine) {
+    if (q.t === 'who') input = h('div', { class: 'frow' }, S.users.map(u => h('button', { class: 'btn', onclick: () => answer(u.id) }, avatar(u.id, true), u.id === me ? 'Moi' : u.name)));
+    else if (q.t === 'choice') input = h('div', { class: 'col' }, [['a', q.a], ['b', q.b]].map(([k, l]) => h('button', { class: 'btn full', onclick: () => answer(k) }, l)));
+    else input = inlineAdd('q_in', 'Ta réponse…', answer, 'send');
+  }
+  const past = [];
+  for (let i = 1; i <= 30 && past.length < 12; i++) { const d = addDays(t, -i); if (S.users.some(u => ans(d, u.id))) past.push(d); }
+  const pair = (d, qq) => S.users.map(u => { const a = ans(d, u.id); return h('div', { class: 'row', style: { alignItems: 'flex-start' } }, avatar(u.id, true), h('div', { class: 'grow' }, a ? ansText(qq, a) : h('span', { class: 'faint' }, 'Pas de réponse'))); });
+  return [
+    head('Question du jour', { back: 'plus', extra: st ? h('span', { class: 'pill plain', c: 'var(--warn)' }, `🔥 ${st} jour${st > 1 ? 's' : ''}`) : null }),
+    sec(h('div', { class: 'eyebrow' }, cap(fmtD(t, { weekday: 'long', day: 'numeric', month: 'long' }))), h('p', { class: 'big', style: { fontSize: '25px' } }, q.t === 'choice' ? q.q : q.q),
+      !mine ? [h('p', { class: 'small muted' }, his ? `${o.name} a déjà répondu. Sa réponse s'affiche dès que tu réponds.` : 'Vos réponses se dévoilent quand vous avez répondu tous les deux.'), input]
+        : [h('hr', { class: 'sep' }), h('div', { class: 'row', style: { alignItems: 'flex-start' } }, avatar(me, true), h('div', { class: 'grow b' }, ansText(q, mine))),
+        his && !his.hidden ? h('div', { class: 'row', style: { alignItems: 'flex-start' } }, avatar(o.id, true), h('div', { class: 'grow b' }, ansText(q, his))) : h('p', { class: 'small muted' }, `En attente de la réponse de ${o.name}…`),
+        his && !his.hidden && q.t !== 'open' ? h('span', { class: 'pill plain', c: mine.text === his.text ? 'var(--good)' : 'var(--u1)', style: { alignSelf: 'flex-start' } }, mine.text === his.text ? 'D\'accord tous les deux ✨' : 'Pas d\'accord, débat ce soir 😏') : null]),
+    past.length ? sec(eyebrow('Les jours d\'avant'), h('div', { class: 'col', style: { gap: '16px' } }, past.map(d => { const qq = qOf(d); return h('div', { class: 'col', style: { gap: '6px' } }, h('div', { class: 'small muted' }, cap(fmtD(d)) + ' · ' + qText(qq)), pair(d, qq)); }))) : null
+  ];
+};
+
+/* ----- photos ----- */
+function photoSheet(id) {
+  const ctl = openSheet('Photo', () => {
+    const p = S.cols.photos[id]; if (!p) return h('div', { class: 'empty' }, 'Photo supprimée.');
+    return [h('div', { class: 'viewer' }, h('img', { src: B.fileUrl(p.fileId), alt: p.caption || 'Photo' })),
+    h('div', { class: 'f' }, h('label', { htmlFor: 'p_cap' }, 'Légende'), h('input', { class: 'inp', id: 'p_cap', placeholder: 'Où, quand, pourquoi on rigole…', value: p.caption || '', onchange: e => put('photos', { ...S.cols.photos[id], caption: e.target.value }) })),
+    h('div', { class: 'f' }, h('label', { htmlFor: 'p_date' }, 'Date'), h('input', { class: 'inp', id: 'p_date', type: 'date', value: p.date, onchange: e => e.target.value && put('photos', { ...S.cols.photos[id], date: e.target.value }) })),
+    h('p', { class: 'small faint' }, `Ajoutée par ${nameOf(p.by)}`),
+    h('button', { class: 'btn danger full', onclick: async () => { if (await confirmSheet('Supprimer cette photo ?', '', 'Supprimer', true)) { B.delFile(p.fileId).catch(() => { }); ctl.close(); del('photos', id); } } }, 'Supprimer')];
+  });
+}
+async function addPhotos() {
+  const up = await uploadImages(await pickFiles('image/*', true));
+  if (up.length) { await putMany('photos', up.map(u => ({ fileId: u.id, date: today(), caption: '' }))); toast(up.length > 1 ? `${up.length} photos ajoutées` : 'Photo ajoutée'); }
+}
+VIEWS.photos = () => {
+  const ps = all('photos').sort((a, b) => (b.date + b.at).localeCompare(a.date + a.at)), groups = {};
+  for (const p of ps) (groups[p.date.slice(0, 7)] = groups[p.date.slice(0, 7)] || []).push(p);
+  return [
+    head('Photos', { back: 'plus', add: addPhotos, addLabel: 'Ajouter des photos', sub: ps.length ? `${ps.length} souvenir${ps.length > 1 ? 's' : ''}` : null }),
+    ps.length ? Object.keys(groups).map(m => sec(h('div', { class: 'eyebrow' }, cap(fmtD(m + '-01', { month: 'long', year: 'numeric' }))), h('div', { class: 'pgrid' }, groups[m].map(p => h('button', { onclick: () => photoSheet(p.id), 'aria-label': p.caption || 'Photo' }, h('img', { src: B.fileUrl(p.fileId), alt: p.caption || '', loading: 'lazy' }))))))
+      : sec(h('div', { class: 'empty' }, 'Votre album est vide. Ajoutez vos premières photos avec le bouton +.'))
+  ];
+};
+
+/* ----- documents ----- */
+const fileEmoji = m => /^image\//.test(m) ? '🖼️' : /pdf/.test(m) ? '📕' : /sheet|excel|csv/.test(m) ? '📊' : /word|document|text/.test(m) ? '📝' : /zip|rar|7z/.test(m) ? '🗜️' : '📄';
+function openDoc(f) {
+  if (/^image\//.test(f.mime)) return openSheet(f.name, () => h('div', { class: 'viewer' }, h('img', { src: B.fileUrl(f.fileId), alt: f.name })));
+  if (S.demo) return toast('L\'ouverture des fichiers fonctionne sur la version en ligne');
+  const a = h('a', { href: B.fileUrl(f.fileId), target: '_blank', rel: 'noopener' }); D.body.append(a); a.click(); a.remove();
+}
+VIEWS.docs = () => {
+  const folders = all('folders').sort((a, b) => a.name.localeCompare(b.name)), files = all('docfiles');
+  const cur = S.folder && S.cols.folders[S.folder];
+  if (!cur) return [
+    head('Documents', { back: 'plus', add: () => formSheet({ title: 'Nouveau dossier', values: { emoji: '📁' }, fields: [{ k: 'name', label: 'Nom', required: true }, { k: 'emoji', label: 'Emoji' }], onSubmit: v => put('folders', v) }), addLabel: 'Nouveau dossier' }),
+    sec(folders.length ? h('div', { class: 'list' }, folders.map(f => { const n = files.filter(x => x.folder === f.id).length; return h('button', { class: 'item', onclick: () => { S.folder = f.id; window.scrollTo(0, 0); render(true); } }, h('span', { class: 'emo' }, f.emoji || '📁'), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, f.name), h('div', { class: 'small muted' }, n ? `${n} fichier${n > 1 ? 's' : ''}` : 'Vide')), icon('next')); })) : h('div', { class: 'empty' }, 'Créez un premier dossier avec le bouton +.')),
+    h('p', { class: 'small faint center' }, 'Fichiers jusqu\'à 25 Mo, visibles uniquement par vous deux.')
+  ];
+  const list = files.filter(x => x.folder === cur.id).sort((a, b) => b.at - a.at);
+  const add = async () => {
+    const fs = await pickFiles('', true);
+    for (let i = 0; i < fs.length; i++) {
+      toast(`Envoi ${i + 1}/${fs.length}…`);
+      try { if (S.demo && fs[i].size > 400e3) throw new Error('En démo, fichiers de 400 ko maximum'); const m = await B.upload(fs[i], fs[i].name); await put('docfiles', { name: m.name, folder: cur.id, fileId: m.id, size: m.size, mime: m.mime }); }
+      catch (e) { toast(e.message || 'Envoi impossible'); }
+    }
+  };
+  return [
+    head(cur.name, { back: () => { S.folder = null; render(true); }, add, addLabel: 'Ajouter des fichiers' }),
+    sec(list.length ? h('div', { class: 'list' }, list.map(f => h('div', { class: 'item' },
+      h('button', { class: 'row grow', style: { textAlign: 'left' }, onclick: () => openDoc(f) }, h('span', { class: 'emo' }, fileEmoji(f.mime || '')), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, f.name), h('div', { class: 'small muted' }, `${size(f.size)} · ${nameOf(f.by)} · ${fmtD(iso(new Date(f.at)))}`))),
+      h('button', { class: 'ibtn', style: { width: '34px', height: '34px' }, 'aria-label': 'Supprimer ' + f.name, onclick: async () => { if (await confirmSheet('Supprimer ce fichier ?', f.name, 'Supprimer', true)) { B.delFile(f.fileId).catch(() => { }); del('docfiles', f.id); } } }, icon('x'))))) : h('div', { class: 'empty' }, 'Dossier vide. Ajoutez des fichiers avec le bouton +.')),
+    !list.length && h('button', { class: 'btn danger', onclick: async () => { if (await confirmSheet('Supprimer ce dossier ?', '', 'Supprimer', true)) { S.folder = null; del('folders', cur.id); } } }, 'Supprimer le dossier')
+  ];
+};
+
+/* ----- listes ----- */
+VIEWS.listes = () => {
+  const lists = all('lists').sort((a, b) => (a.at || 0) - (b.at || 0)), items = all('items');
+  const cur = S.list && S.cols.lists[S.list];
+  if (!cur) return [
+    head('Listes', { back: 'plus', add: () => formSheet({ title: 'Nouvelle liste', values: { emoji: '📝' }, fields: [{ k: 'name', label: 'Nom', ph: 'Valise, cadeaux de Noël…', required: true }, { k: 'emoji', label: 'Emoji' }], onSubmit: v => put('lists', v) }), addLabel: 'Nouvelle liste' }),
+    lists.length ? h('div', { class: 'grid2' }, lists.map(l => { const its = items.filter(i => i.list === l.id), left = its.filter(i => !i.done).length; return h('button', { class: 'glass card tap', onclick: () => { S.list = l.id; window.scrollTo(0, 0); render(true); } }, h('div', { style: { fontSize: '28px' } }, l.emoji || '📝'), h('div', { class: 'mid' }, l.name), h('div', { class: 'small muted' }, its.length ? (left ? `${left} à faire` : 'Tout est fait ✓') : 'Vide')); })) : sec(h('div', { class: 'empty' }, 'Créez une première liste avec le bouton +.'))
+  ];
+  const its = items.filter(i => i.list === cur.id).sort((a, b) => (a.done - b.done) || (b.at - a.at)), doneN = its.filter(i => i.done).length;
+  return [
+    head(`${cur.emoji || ''} ${cur.name}`, { back: () => { S.list = null; render(true); } }),
+    sec(inlineAdd('li_in', 'Ajouter…', t => put('items', { list: cur.id, text: t, done: false })),
+      its.length ? h('div', { class: 'list' }, its.map(i => h('div', { class: 'item' },
+        h('button', { class: 'row grow', style: { textAlign: 'left' }, onclick: () => put('items', { ...i, done: !i.done }) }, h('span', { class: 'check' + (i.done ? ' on' : '') }, i.done ? '✓' : ''), h('span', { class: 'grow ' + (i.done ? 'done-t' : '') }, i.text)),
+        cur.id !== 'l_courses' && h('button', { class: 'chip', style: { minHeight: '28px', padding: '0 9px', fontSize: '12px' }, 'aria-label': 'Niveau de budget', onclick: () => put('items', { ...i, lvl: ((i.lvl || 0) + 1) % 4 }) }, i.lvl ? '€'.repeat(i.lvl) : '€ ?'),
+        avatar(i.by, true), h('button', { class: 'ibtn', style: { width: '32px', height: '32px' }, 'aria-label': 'Retirer', onclick: () => del('items', i.id) }, icon('x'))))) : h('div', { class: 'empty' }, 'Rien dans cette liste.')),
+    h('div', { class: 'row' }, doneN ? h('button', { class: 'btn sm grow', onclick: () => its.filter(i => i.done).forEach(i => del('items', i.id)) }, `Retirer les ${doneN} cochés`) : null,
+      h('button', { class: 'btn sm danger grow', onclick: async () => { if (await confirmSheet('Supprimer cette liste ?', '', 'Supprimer', true)) { its.forEach(i => del('items', i.id)); S.list = null; del('lists', cur.id); } } }, 'Supprimer la liste'))
+  ];
+};
+
+/* ----- envies ----- */
+function wishForm(w) {
+  formSheet({
+    title: w.id ? 'Modifier l\'envie' : 'Nouvelle envie', values: w,
+    fields: [{ k: 'text', label: 'Ce qui me ferait plaisir', ph: 'Un livre, un parfum, un week-end…', required: true }, { k: 'url', label: 'Lien (facultatif)', type: 'url', ph: 'https://…' }, { k: 'price', label: 'Prix indicatif (€)', type: 'number' }],
+    onSubmit: v => put('wishes', { ...v, owner: S.me.id }), onDelete: w.id ? () => del('wishes', w.id) : null
+  });
+}
+VIEWS.envies = () => {
+  const me = S.me.id, o = other(), tab = S.wishTab || 'me';
+  const ws = all('wishes').filter(w => w.owner === (tab === 'me' ? me : o.id)).sort((a, b) => b.at - a.at);
+  return [
+    head('Envies', { back: 'plus', add: tab === 'me' ? () => wishForm({}) : null, addLabel: 'Ajouter une envie' }),
+    h('div', { class: 'seg' }, [['me', 'Mes envies'], ['o', `Celles de ${o.name}`]].map(([k, l]) => h('button', { class: tab === k ? 'on' : '', onclick: () => { S.wishTab = k; render(true); } }, l))),
+    sec(ws.length ? h('div', { class: 'list' }, ws.map(w => h('div', { class: 'item' },
+      h('span', { class: 'emo' }, '🎁'),
+      h('div', { class: 'grow' }, h('div', { class: 'b' }, w.text), h('div', { class: 'small muted' }, [w.price ? eur0(w.price) : '', w.url ? h('a', { href: w.url, target: '_blank', rel: 'noopener noreferrer' }, 'Voir le lien ↗') : ''].filter(Boolean).flatMap((x, i) => i ? [' · ', x] : [x]))),
+      tab === 'me' ? h('button', { class: 'btn sm', onclick: () => wishForm(w) }, 'Modifier')
+        : h('button', { class: 'chip' + (w.reservedBy ? ' on' : ''), onclick: () => put('wishes', { ...w, reservedBy: w.reservedBy ? null : me }) }, w.reservedBy ? 'Je m\'en occupe 🤫' : 'Je m\'en occupe')))) : h('div', { class: 'empty' }, tab === 'me' ? 'Note ici ce qui te ferait plaisir.' : `${o.name} n'a encore rien noté.`)),
+    h('p', { class: 'small faint center' }, tab === 'me' ? `Tu ne vois pas si ${o.name} a prévu de t'offrir quelque chose. C'est fait exprès.` : `${o.name} ne voit pas ce que tu réserves.`)
+  ];
+};
+
+/* ----- comptes à rebours ----- */
+VIEWS.rebours = () => {
+  const t = today(), cs = all('countdowns').sort((a, b) => a.date.localeCompare(b.date));
+  const form = c => formSheet({ title: c.id ? 'Modifier' : 'Nouveau compte à rebours', values: { emoji: '🎉', date: addDays(t, 30), ...c }, fields: [{ k: 'title', label: 'Quoi', ph: 'Vacances, anniversaire, festival…', required: true }, { k: 'date', label: 'Date', type: 'date', half: true, required: true }, { k: 'emoji', label: 'Emoji', half: true }], onSubmit: v => put('countdowns', v), onDelete: c.id ? () => del('countdowns', c.id) : null });
+  const row = c => { const n = daysBetween(t, c.date); return h('button', { class: 'glass card tap', onclick: () => form(c) }, h('div', { class: 'cd' }, h('div', { class: 'j' }, n === 0 ? 'Jour J' : n > 0 ? 'J-' + n : 'J+' + -n), h('div', { class: 'grow' }, h('div', { class: 'mid' }, (c.emoji || '🎉') + ' ' + c.title), h('div', { class: 'small muted' }, cap(fmtD(c.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })))))); };
+  const next = cs.filter(c => c.date >= t), past = cs.filter(c => c.date < t).reverse();
+  return [head('Comptes à rebours', { back: 'plus', add: () => form({}) }),
+  next.length ? next.map(row) : sec(h('div', { class: 'empty' }, 'Ajoutez ce que vous attendez avec impatience.')),
+  past.length ? [h('div', { class: 'eyebrow', style: { padding: '6px 4px 0' } }, 'Déjà passés'), past.map(row)] : null];
+};
+
+/* ----- roue ----- */
+const WCOL = ['#0a7aff', '#ff2d6f', '#af52de', '#ff9500', '#28a85a', '#32ade6', '#ff6b4a', '#5e5ce6'];
+VIEWS.roue = () => {
+  const lists = all('lists').filter(l => all('items').some(i => i.list === l.id && !i.done)).sort((a, b) => (a.at || 0) - (b.at || 0));
+  const src = S.wheelSrc && S.cols.lists[S.wheelSrc] ? S.wheelSrc : 'own', max = S.wheelMax || 0;
+  const pool = src === 'own' ? all('wheel').sort((a, b) => (a.at || 0) - (b.at || 0)) : all('items').filter(i => i.list === src && !i.done && (!max || !i.lvl || i.lvl <= max)).sort((a, b) => a.at - b.at);
+  const opts = pool.slice(0, 16), n = opts.length;
+  const pick = (k, v) => { S[k] = v; S.wheelRes = ''; S.wheelRot = 0; render(true); };
+  const cv = h('canvas', { width: 600, height: 600, role: 'img', 'aria-label': 'Roue : ' + opts.map(o => o.text).join(', ') });
+  cv.style.transform = `rotate(${S.wheelRot || 0}deg)`;
+  if (n) {
+    const g = cv.getContext('2d'), a = 2 * Math.PI / n;
+    for (let i = 0; i < n; i++) {
+      g.beginPath(); g.moveTo(300, 300); g.arc(300, 300, 298, -Math.PI / 2 + i * a, -Math.PI / 2 + (i + 1) * a); g.closePath(); g.fillStyle = WCOL[(n % WCOL.length === 1 && i === n - 1 ? i + 1 : i) % WCOL.length]; g.fill();
+      g.save(); g.translate(300, 300); g.rotate(-Math.PI / 2 + (i + .5) * a); g.fillStyle = '#fff'; g.font = `600 ${n > 10 ? 20 : 27}px -apple-system, "Segoe UI", Roboto, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle';
+      const txt = opts[i].text.length > 17 ? opts[i].text.slice(0, 16) + '…' : opts[i].text; g.fillText(txt, 278, 0); g.restore();
+    }
+    g.beginPath(); g.arc(300, 300, 34, 0, 7); g.fillStyle = '#fff'; g.fill();
+  }
+  const res = h('div', { class: 'mid center', style: { minHeight: '30px', fontSize: '22px' }, 'aria-live': 'polite' }, S.wheelRes || '');
+  const spin = () => {
+    if (n < 2 || S.spinning) return;
+    S.spinning = true; S.wheelRes = ''; res.textContent = '';
+    const i = Math.floor(Math.random() * n), seg = 360 / n, cur = S.wheelRot || 0;
+    S.wheelRot = Math.ceil(cur / 360) * 360 + 360 * 5 + (360 - (i + .5) * seg);
+    cv.style.transform = `rotate(${S.wheelRot}deg)`;
+    setTimeout(() => { S.spinning = false; S.wheelRes = opts[i].text + ' !'; if (S.view === 'roue') render(true); }, 4300);
+  };
+  return [
+    head('La roue', { back: 'plus', sub: src === 'own' ? 'On mange quoi ce soir ?' : 'On tire au sort dans ' + S.cols.lists[src].name }),
+    h('div', { class: 'chips scroll' }, h('button', { class: 'chip' + (src === 'own' ? ' on' : ''), onclick: () => pick('wheelSrc', 'own') }, '🎡 Mes options'), lists.map(l => h('button', { class: 'chip' + (src === l.id ? ' on' : ''), onclick: () => pick('wheelSrc', l.id) }, (l.emoji || '') + ' ' + l.name))),
+    src !== 'own' && h('div', { class: 'seg' }, [[0, 'Tout budget'], [1, '€'], [2, '€€ max'], [3, '€€€ max']].map(([k, l]) => h('button', { class: max === k ? 'on' : '', onclick: () => pick('wheelMax', k) }, l))),
+    sec(n >= 2 ? [h('div', { class: 'wheelbox' }, cv), res, h('button', { class: 'btn pri full', onclick: spin }, 'Lancer la roue')] : h('div', { class: 'empty' }, src === 'own' ? 'Ajoutez au moins deux options.' : 'Il faut au moins deux idées dans cette liste pour ce budget.')),
+    src === 'own' ? sec(eyebrow('Options'), inlineAdd('wh_in', 'Ajouter une option…', t => put('wheel', { text: t })),
+      h('div', { class: 'chips' }, opts.map(o => h('button', { class: 'chip', 'aria-label': 'Retirer ' + o.text, onclick: () => del('wheel', o.id) }, o.text, h('span', { class: 'n' }, '✕')))))
+      : h('p', { class: 'small faint center' }, 'Les idées viennent de la liste. Le niveau de budget (€, €€, €€€) se règle sur chaque ligne de la liste ; les idées sans niveau sont toujours gardées.')
+  ];
+};
+
+/* ----- réglages ----- */
+function b64u8(s) { const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function enablePush() {
+  if (S.demo) return toast('Les notifications fonctionneront sur morgane.kratox.fr');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return toast('Installe d\'abord l\'app sur l\'écran d\'accueil, puis réessaie');
+  try {
+    if (await Notification.requestPermission() !== 'granted') return toast('Notifications refusées dans les réglages du téléphone');
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u8(S.vapid) });
+    await api('POST', '/api/push/subscribe', { sub: sub.toJSON() });
+    S.pushOn = true; toast('Notifications activées sur cet appareil'); render(true);
+  } catch (e) { toast('Activation impossible : ' + (e.message || 'erreur')); }
+}
+async function checkPush() {
+  if (S.demo || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); const on = !!sub && Notification.permission === 'granted'; if (on !== !!S.pushOn) { S.pushOn = on; if (S.view === 'reglages') render(); } } catch (e) { }
+}
+VIEWS.reglages = () => {
+  const me = S.me, pr = profile(me.id), cp = couple();
+  const setP = patch => put('profiles', { ...pr, id: me.id, ...patch });
+  const setC = patch => put('profiles', { ...cp, id: '_couple', ...patch });
+  checkPush();
+  const sw = (on, fn, label) => h('button', { class: 'chip' + (on ? ' on' : ''), role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: fn }, on ? 'Activé' : 'Désactivé');
+  return [
+    head('Réglages', { back: 'plus' }),
+    sec(h('div', { class: 'row' }, avatar(me.id), h('div', { class: 'grow' }, h('div', { class: 'mid' }, me.name), h('div', { class: 'small muted' }, 'Connecté sur cet appareil'))),
+      h('div', { class: 'f' }, h('label', { htmlFor: 's_home' }, 'Ma ville habituelle'), h('select', { class: 'inp', id: 's_home', onchange: e => setP({ home: e.target.value }) }, [['', 'Non précisée'], ...PLACES.slice(0, 3).map(p => [p[0], p[0]])].map(([v, l]) => h('option', { value: v, selected: (pr.home || '') === v }, l))), h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, 'Utilisée les jours où tu n\'as rien indiqué dans l\'agenda.'))),
+    sec(eyebrow('Notifications'),
+      h('div', { class: 'row between' }, h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Sur cet appareil'), h('div', { class: 'small muted' }, S.pushOn ? 'Les petits mots arrivent ici.' : 'À activer sur chaque téléphone.')), S.pushOn ? h('button', { class: 'btn sm', onclick: async () => { try { const r = await api('POST', '/api/push/test', {}); toast(r.devices ? 'Notification de test envoyée' : 'Aucun appareil abonné'); } catch (e) { toast(e.message); } } }, 'Tester') : h('button', { class: 'btn sm pri', onclick: enablePush }, 'Activer')),
+      h('div', { class: 'row between' }, h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Activité de l\'autre'), h('div', { class: 'small muted' }, 'Agenda, dépenses, appart, photos, question du jour. Les petits mots arrivent toujours.')), sw(pr.notifActivity !== false, () => setP({ notifActivity: pr.notifActivity === false }), 'Activité de l\'autre'))),
+    sec(eyebrow('À deux'),
+      h('div', { class: 'f' }, h('label', { htmlFor: 's_bud' }, 'Budget logement maximum, charges comprises (€)'), h('input', { class: 'inp', id: 's_bud', type: 'number', inputMode: 'numeric', value: cp.budget == null ? '' : cp.budget, onchange: e => setC({ budget: +e.target.value || 0 }) })),
+      h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Répartition par défaut des dépenses'), h('div', { class: 'seg' }, [['half', 'Moitié-moitié'], ['pct', 'Au prorata']].map(([k, l]) => h('button', { class: (cp.defaultSplit || 'half') === k ? 'on' : '', onclick: () => setC({ defaultSplit: k }) }, l)))),
+      cp.defaultSplit === 'pct' && h('div', { class: 'f' }, h('label', { htmlFor: 's_pct' }, `Part de ${S.users[0].name} (%)`), h('input', { class: 'inp', id: 's_pct', type: 'number', min: 0, max: 100, value: cp.pct == null ? 50 : cp.pct, onchange: e => setC({ pct: Math.max(0, Math.min(100, +e.target.value || 0)) }) }))),
+    sec(eyebrow('Application'),
+      S.installEvt ? h('button', { class: 'btn pri full', onclick: async () => { S.installEvt.prompt(); S.installEvt = null; render(true); } }, 'Installer sur l\'écran d\'accueil')
+        : h('p', { class: 'small muted' }, 'Pour l\'avoir comme une vraie app : sur Android, menu ⋮ de Chrome puis « Installer l\'application ». Sur iPhone, bouton Partager de Safari puis « Sur l\'écran d\'accueil ».'),
+      !S.demo && h('button', { class: 'btn full', onclick: () => formSheet({ title: 'Changer de mot de passe', submit: 'Changer', fields: [{ k: 'old', label: 'Mot de passe actuel', type: 'password', auto: 'current-password', required: true }, { k: 'next', label: 'Nouveau (10 caractères minimum)', type: 'password', auto: 'new-password', required: true }], onSubmit: async v => { await api('POST', '/api/password', v); toast('Mot de passe changé'); } }) }, 'Changer de mot de passe'),
+      S.demo && h('button', { class: 'btn full', onclick: async () => { await B.login(other().id); await B.boot(); toast(`Tu vois l'app comme ${S.me.name}`); go('home'); } }, `Voir l'app comme ${other().name}`),
+      S.demo && h('button', { class: 'btn full', onclick: async () => { if (await confirmSheet('Remettre la démo à zéro ?', 'Les données d\'exemple reviennent.', 'Remettre à zéro', true)) { try { localStorage.removeItem('nous-demo-v1'); } catch (e) { } Demo.raw = null; await B.boot(); go('home'); } } }, 'Réinitialiser la démo'),
+      h('button', { class: 'btn danger full', onclick: async () => { try { await B.logout(); } catch (e) { } S.me = null; showLogin(); } }, 'Se déconnecter'))
+  ];
+};
+
+</script>
+<script>
+'use strict';
+/* Nous — le côté mignon : humeur du jour, notre histoire, bons à offrir, mots programmés. */
+
+/* ----- humeur du jour ----- */
+const MOODS = ['😊', '🥰', '😍', '😎', '🥳', '😴', '😐', '🥺', '😢', '😤', '🤯', '🤒'];
+const moodOf = (u, d) => (S.cols.moods || {})[d + '_' + u];
+function moodSheet() {
+  const t = today(), cur = moodOf(S.me.id, t) || {}, v = { emoji: cur.emoji || '', text: cur.text || '' };
+  openSheet('Ton humeur du jour', c => [
+    h('div', { class: 'chips', style: { justifyContent: 'center' } }, MOODS.map(m => h('button', { class: 'chip' + (v.emoji === m ? ' on' : ''), style: { fontSize: '24px', minHeight: '50px', minWidth: '50px', justifyContent: 'center' }, 'aria-label': 'Humeur ' + m, onclick: () => { v.emoji = m; c.refresh(); } }, m))),
+    h('div', { class: 'f' }, h('label', { htmlFor: 'mood_t' }, 'Un mot (facultatif)'), h('input', { class: 'inp', id: 'mood_t', maxLength: 80, placeholder: 'Crevé mais content, hâte d\'être à ce soir…', value: v.text, oninput: e => v.text = e.target.value })),
+    h('button', { class: 'btn pri full', onclick: () => { if (!v.emoji) return toast('Choisis un emoji'); put('moods', { id: t + '_' + S.me.id, date: t, user: S.me.id, emoji: v.emoji, text: v.text.trim() }); c.close(); } }, 'Enregistrer')
+  ]);
+}
+function moodCard() {
+  const t = today();
+  return sec(eyebrow('Humeur du jour'), h('div', { class: 'where' }, S.users.map(u => {
+    const m = moodOf(u.id, t), mine = u.id === S.me.id;
+    return h(mine ? 'button' : 'div', { class: 'moodcell', onclick: mine ? moodSheet : null },
+      h('span', { class: 'emo', style: { fontSize: '24px' } }, m ? m.emoji : '·'),
+      h('div', { class: 'grow' }, h('div', { class: 'b ell' }, u.name), h('div', { class: 'small muted' }, m ? (m.text || 'Sans commentaire') : mine ? 'Dis comment ça va' : 'Pas encore dit')));
+  })));
+}
+
+/* ----- souvenir du jour ----- */
+function flashback() {
+  const t = today(), y = +t.slice(0, 4), md = t.slice(4);
+  for (const m of all('milestones')) if (m.date.slice(4) === md && +m.date.slice(0, 4) < y) { const n = y - +m.date.slice(0, 4); return { label: `Il y a ${n} an${n > 1 ? 's' : ''} aujourd'hui`, text: (m.emoji || '✨') + ' ' + m.title, go: 'histoire' }; }
+  const back = (months) => { const d = pd(t); d.setMonth(d.getMonth() - months); return d.getDate() === +t.slice(8) ? iso(d) : null; };
+  for (const [months, label] of [[12, 'Il y a un an aujourd\'hui'], [24, 'Il y a deux ans aujourd\'hui'], [36, 'Il y a trois ans aujourd\'hui'], [6, 'Il y a six mois'], [1, 'Il y a un mois']]) {
+    const d = back(months); if (!d) continue;
+    const p = all('photos').find(x => x.date === d); if (p) return { label, photo: p, text: p.caption || '', go: 'photos' };
+    const n = all('notes').find(x => iso(new Date(x.at)) === d); if (n) return { label, text: `« ${n.text} »`, who: n.by, go: 'mots' };
+  }
+  return null;
+}
+function flashCard() {
+  const f = flashback(); if (!f) return null;
+  return h('button', { class: 'glass card tap', onclick: () => go(f.go) }, h('div', { class: 'eyebrow' }, f.label),
+    h('div', { class: 'row' }, f.photo ? h('img', { src: B.fileUrl(f.photo.fileId), alt: '', style: { width: '72px', height: '72px', objectFit: 'cover', borderRadius: '16px', flex: 'none' } }) : f.who ? avatar(f.who) : null, h('div', { class: 'mid grow' }, f.text || 'Un souvenir en photo')));
+}
+
+/* ----- notre histoire ----- */
+VIEWS.histoire = () => {
+  const t = today(), cp = couple(), ms = all('milestones').sort((a, b) => b.date.localeCompare(a.date));
+  const form = m => formSheet({
+    title: m.id ? 'Modifier' : 'Nouveau moment', values: { emoji: '✨', date: t, ...m },
+    fields: [{ k: 'title', label: 'Quoi', ph: 'Premier rendez-vous, premier voyage, les clés de l\'appart…', required: true }, { k: 'date', label: 'Date', type: 'date', half: true, required: true }, { k: 'emoji', label: 'Emoji', half: true }, { k: 'note', label: 'Un souvenir à garder', type: 'textarea', ph: 'Ce qu\'il s\'est passé, ce qu\'on s\'est dit…' }],
+    onSubmit: v => put('milestones', v), onDelete: m.id ? () => del('milestones', m.id) : null
+  });
+  const setSince = () => formSheet({ title: 'Ensemble depuis', values: { since: cp.since || t }, fields: [{ k: 'since', label: 'Date', type: 'date', required: true }], onSubmit: v => put('profiles', { ...cp, id: '_couple', since: v.since }) });
+  let top;
+  if (cp.since && cp.since <= t) {
+    const days = daysBetween(cp.since, t), y = +t.slice(0, 4);
+    let next = y + cp.since.slice(4); if (next < t) next = (y + 1) + cp.since.slice(4);
+    const inD = daysBetween(t, next), yrs = +next.slice(0, 4) - +cp.since.slice(0, 4);
+    top = h('button', { class: 'glass card tap', onclick: setSince }, h('div', { class: 'eyebrow' }, 'Ensemble depuis'),
+      h('div', { class: 'big num' }, `${new Intl.NumberFormat('fr-FR').format(days)} jour${days > 1 ? 's' : ''}`),
+      h('div', { class: 'small muted' }, `Depuis le ${fmtD(cp.since, { day: 'numeric', month: 'long', year: 'numeric' })} · ${inD === 0 ? `${yrs} an${yrs > 1 ? 's' : ''} aujourd'hui 🥂` : `${yrs} an${yrs > 1 ? 's' : ''} dans ${inD} jour${inD > 1 ? 's' : ''}`}`));
+  } else top = h('button', { class: 'glass card tap', onclick: setSince }, h('div', { class: 'eyebrow' }, 'Ensemble depuis'), h('div', { class: 'mid' }, 'Indiquer la date de votre rencontre'), h('div', { class: 'small muted' }, 'Pour compter les jours et fêter les anniversaires.'));
+  return [
+    head('Notre histoire', { back: 'plus', add: () => form({}), addLabel: 'Ajouter un moment' }),
+    top,
+    ms.length ? sec(h('div', { class: 'tl story' }, ms.map(m => h('button', { c: 'var(--u1)', onclick: () => form(m) },
+      h('div', { class: 'small muted' }, cap(fmtD(m.date, { day: 'numeric', month: 'long', year: 'numeric' })) + ' · ' + rel(m.date)),
+      h('div', { class: 'mid' }, (m.emoji || '✨') + ' ' + m.title), m.note && h('div', { class: 'small', style: { whiteSpace: 'pre-wrap' } }, m.note)))))
+      : sec(h('div', { class: 'empty' }, 'Ajoutez vos dates clés : la rencontre, le premier voyage, l\'emménagement…'))
+  ];
+};
+
+/* ----- bons à offrir ----- */
+const BON_IDEAS = [['💆', 'Un massage'], ['🍳', 'Petit-déj au lit'], ['🧽', 'Je fais la vaisselle une semaine'], ['🎬', 'Tu choisis le film, sans discussion'], ['🍝', 'Je cuisine ton plat préféré'], ['🛋️', 'Une soirée où tu ne fais rien'], ['🤐', 'Un joker « tu as raison »'], ['🍰', 'Un dessert quand tu veux']];
+VIEWS.bons = () => {
+  const me = S.me.id, o = other(), tab = S.bonTab || 'recus';
+  const list = all('coupons').filter(c => tab === 'recus' ? c.to === me : c.from === me).sort((a, b) => (!!a.usedAt - !!b.usedAt) || b.at - a.at);
+  const offer = () => {
+    const v = { emoji: '🎟️', title: '' };
+    openSheet(`Offrir un bon à ${o.name}`, c => [
+      h('div', { class: 'chips' }, BON_IDEAS.map(([e, t]) => h('button', { class: 'chip' + (v.title === t ? ' on' : ''), onclick: () => { v.emoji = e; v.title = t; c.refresh(); } }, e + ' ' + t))),
+      h('div', { class: 'f' }, h('label', { htmlFor: 'bon_t' }, 'Bon pour…'), h('input', { class: 'inp', id: 'bon_t', maxLength: 90, placeholder: 'Ton idée', value: v.title, oninput: e => v.title = e.target.value })),
+      h('button', { class: 'btn pri full', onclick: () => { if (!v.title.trim()) return toast('Écris ce que tu offres'); put('coupons', { title: v.title.trim(), emoji: v.emoji, from: me, to: o.id }); S.bonTab = 'offerts'; c.close(); toast(S.demo ? `En vrai, ${o.name} reçoit une notification` : `Bon offert à ${o.name} 🎟️`); } }, 'Offrir')
+    ]);
+  };
+  const use = async c => { if (await confirmSheet('Utiliser ce bon ?', `« ${c.title} ». ${o.name} est prévenu tout de suite.`, 'Je l\'utilise')) put('coupons', { ...c, usedAt: Date.now() }); };
+  return [
+    head('Bons', { back: 'plus', add: offer, addLabel: 'Offrir un bon' }),
+    h('div', { class: 'seg' }, [['recus', 'Reçus'], ['offerts', 'Offerts']].map(([k, l]) => h('button', { class: tab === k ? 'on' : '', onclick: () => { S.bonTab = k; render(true); } }, l))),
+    list.length ? list.map(c => h('div', { class: 'glass card coupon' + (c.usedAt ? ' used' : '') },
+      h('div', { class: 'row' }, h('span', { class: 'emo', style: { fontSize: '24px', width: '48px', height: '48px' } }, c.emoji || '🎟️'),
+        h('div', { class: 'grow' }, h('div', { class: 'tiny muted b', style: { textTransform: 'uppercase' } }, 'Bon pour'), h('div', { class: 'mid' }, c.title), h('div', { class: 'small muted' }, c.usedAt ? `Utilisé le ${fmtD(iso(new Date(c.usedAt)))}` : `Offert par ${nameOf(c.from)} le ${fmtD(iso(new Date(c.at)))}`))),
+      !c.usedAt && (tab === 'recus' ? h('button', { class: 'btn pri full', onclick: () => use(c) }, 'Utiliser') : h('button', { class: 'btn sm danger', style: { alignSelf: 'flex-start' }, onclick: async () => { if (await confirmSheet('Reprendre ce bon ?', '', 'Reprendre', true)) del('coupons', c.id); } }, 'Reprendre'))))
+      : sec(h('div', { class: 'empty' }, tab === 'recus' ? `${o.name} ne t'a pas encore offert de bon.` : `Offre un premier bon à ${o.name} avec le bouton +.`))
+  ];
+};
+
+/* ----- mots programmés ----- */
+const nowLocal = () => { const d = new Date(); return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fmtWhen = s => `${cap(fmtD(s.slice(0, 10)))} à ${s.slice(11, 16)}`;
+function scheduleSheet(text) {
+  const d = new Date(Date.now() + 3600e3);
+  formSheet({
+    title: 'Programmer un mot', submit: 'Programmer', values: { text: text || '', sendAt: `${iso(d)}T${pad(d.getHours())}:00` },
+    fields: [{ k: 'text', label: `Ton mot pour ${other().name}`, type: 'textarea', ph: 'Bravo pour ton service, je t\'attends à la maison…', required: true }, { k: 'sendAt', label: 'Arrive le', type: 'datetime-local', required: true, hint: `${other().name} ne voit rien avant l'heure choisie.` }],
+    onSubmit: v => { if (v.sendAt <= nowLocal()) { toast('Choisis une heure à venir'); return false; } put('scheduled', { text: v.text.trim(), to: other().id, sendAt: v.sendAt }); toast('Mot programmé ⏰'); }
+  });
+}
+function schedCard() {
+  const list = all('scheduled').filter(s => s.by === S.me.id).sort((a, b) => a.sendAt.localeCompare(b.sendAt));
+  return sec(eyebrow('Mots programmés', h('button', { class: 'btn sm', onclick: () => scheduleSheet('') }, 'Programmer')),
+    list.length ? h('div', { class: 'list' }, list.map(s => h('div', { class: 'item' }, h('span', { class: 'emo' }, '⏰'), h('div', { class: 'grow' }, h('div', { class: 'ell' }, s.text), h('div', { class: 'small muted' }, fmtWhen(s.sendAt))), h('button', { class: 'ibtn', style: { width: '32px', height: '32px' }, 'aria-label': 'Annuler ce mot', onclick: () => del('scheduled', s.id) }, icon('x')))))
+      : h('p', { class: 'small muted' }, 'Écris maintenant, il arrive à l\'heure que tu choisis. Par exemple à la fin de son service.'));
+}
+
+</script>
+<script>
+'use strict';
+/* Données d'exemple pour la version de démonstration uniquement (jamais chargé sur le serveur). */
+window.nousSeed = function () {
+  const t = today(), now = Date.now(), ym = t.slice(0, 7), M = 'mathis', G = 'morgane';
+  const cols = {}; for (const c of COLS) cols[c] = {};
+  const add = (col, d, by, ago) => { d.id = d.id || col.slice(0, 2) + Object.keys(cols[col]).length + '_s'; d.by = d.by || by || M; d.at = now - (ago || 0) * 3600e3; cols[col][d.id] = d; return d; };
+  const files = {};
+  const pic = (emoji, c1, c2) => {
+    const c = document.createElement('canvas'); c.width = c.height = 320; const g = c.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, 320, 320); gr.addColorStop(0, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.fillRect(0, 0, 320, 320);
+    g.font = '150px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(emoji, 160, 172);
+    const id = 'fs' + Object.keys(files).length, data = c.toDataURL('image/jpeg', .72);
+    files[id] = { name: 'exemple.jpg', mime: 'image/jpeg', size: Math.round(data.length * .75), data }; return id;
+  };
+  // réglages
+  const ago = (y, m, d) => { const x = pd(t); x.setFullYear(x.getFullYear() - y); x.setMonth(x.getMonth() - m); x.setDate(x.getDate() - d); return iso(x); };
+  add('profiles', { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 1200, since: ago(1, 8, 3) });
+  // humeur, histoire, bons, mot programmé
+  add('moods', { id: t + '_' + G, date: t, user: G, emoji: '🥰', text: 'Hâte d\'être à ce soir' }, G, 2);
+  add('milestones', { title: 'Premier rendez-vous', date: ago(1, 8, 3), emoji: '☕', note: 'Un café qui a duré quatre heures.' });
+  add('milestones', { title: 'Premier week-end à deux', date: ago(1, 0, 0), emoji: '🌊', note: 'Biarritz, la pluie, et on a adoré quand même.' }, G);
+  add('milestones', { title: 'On décide de chercher un appart', date: ago(0, 1, 6), emoji: '🔑' });
+  add('coupons', { title: 'Un massage', emoji: '💆', from: G, to: M }, G, 30);
+  add('coupons', { title: 'Petit-déj au lit', emoji: '🍳', from: M, to: G }, M, 50);
+  add('coupons', { title: 'Tu choisis le film, sans discussion', emoji: '🎬', from: M, to: G, usedAt: now - 5 * 864e5 }, M, 300);
+  add('scheduled', { text: 'Bravo pour ton service, je t\'attends avec un thé 🍵', to: G, sendAt: addDays(t, 1) + 'T23:35' });
+  add('profiles', { id: M, home: 'Paris' }); add('profiles', { id: G, home: 'Paris' }, G);
+  // villes : Mathis à Bordeaux du lundi au mercredi, les deux prochaines semaines
+  const dow = pd(t).getDay(), nextMon = addDays(t, ((8 - dow) % 7) || 7);
+  for (const w of [0, 14]) for (let i = 0; i < 3; i++) { const d = addDays(nextMon, w + i); add('places', { id: d + '_' + M, date: d, user: M, place: 'Bordeaux' }); }
+  // agenda
+  const sat = addDays(t, (6 - dow + 7) % 7 || 7);
+  add('events', { title: 'Service du soir', kind: 'service', preset: 'soir', who: G, date: addDays(t, 1), time: '18:30', endTime: '23:30' }, G);
+  add('events', { title: 'Service du midi', kind: 'service', preset: 'midi', who: G, date: addDays(t, 2), time: '11:30', endTime: '15:00' }, G);
+  add('events', { title: 'Dîner chez Léa et Tom', kind: 'soiree', who: 'both', date: sat, time: '20:00', note: 'Apporter le dessert' });
+  add('events', { title: 'TGV Paris → Bordeaux', kind: 'trajet', who: M, date: nextMon, time: '07:04', endTime: '09:12' });
+  add('events', { title: 'Cours', kind: 'cours', who: M, date: nextMon, time: '09:30', endTime: '17:30' });
+  add('events', { title: 'Cours', kind: 'cours', who: M, date: addDays(nextMon, 1), time: '09:00', endTime: '17:30' });
+  add('events', { title: 'Ciné', kind: 'soiree', who: 'both', date: addDays(nextMon, 4), time: '20:30' }, G);
+  // comptes
+  const day = n => { const d = addDays(t, -n); return d.slice(0, 7) === ym ? d : ym + '-01'; };
+  add('expenses', { label: 'Courses de la semaine', amount: 64.3, paidBy: M, split: 'half', cat: 'courses', date: day(1) });
+  add('expenses', { label: 'Resto italien', amount: 58, paidBy: G, split: 'half', cat: 'resto', date: day(3) }, G);
+  add('expenses', { label: 'Billets de train', amount: 46, paidBy: M, split: 'payer', cat: 'transport', date: day(4) });
+  add('expenses', { label: 'Places de concert', amount: 70, paidBy: G, split: 'half', cat: 'sorties', date: day(6) }, G);
+  add('expenses', { label: 'Cadeau pour Léa', amount: 35, paidBy: M, split: 'half', cat: 'cadeaux', date: day(8) });
+  add('recurring', { id: 'rc1', label: 'Netflix', amount: 13.49, paidBy: M, split: 'half', cat: 'abos', day: 5, last: ym });
+  add('expenses', { id: 'r_rc1_' + ym, label: 'Netflix', amount: 13.49, paidBy: M, split: 'half', cat: 'abos', date: ym + '-05', rec: 'rc1' });
+  // petits mots
+  add('notes', { text: 'Bon courage pour ton service 💪', to: G }, M, 26);
+  add('notes', { text: 'Merci ❤️ Tu rentres à quelle heure ?', to: M }, G, 25);
+  add('notes', { text: 'Je pense à toi 💭', to: M }, G, 3);
+  // appart
+  const hist = (...s) => s.map(([st, ago, by]) => ({ s: st, at: now - ago * 864e5, by: by || M }));
+  add('flats', { title: 'T2 rue de la Tombe-Issoire', url: 'https://example.com/annonce-1', rent: 1090, charges: 80, surface: 38, area: 'Paris 14e', commute: { [M]: 14, [G]: 19 }, status: 'visite', visitAt: addDays(t, 2) + 'T18:30', lastActionAt: now - 864e5, history: hist(['repere', 6], ['contacte', 4], ['visite', 1, G]), ratings: { [M]: 4, [G]: 5 }, opinions: { [G]: 'Lumineux, et la cuisine est séparée !' }, notes: '3e étage avec ascenseur, non meublé.', photos: [pic('🛋️', '#9cc7ff', '#d7b8ff')] }, M, 150);
+  add('flats', { title: 'T2 Montrouge, proche métro', url: 'https://example.com/annonce-2', rent: 980, charges: 110, surface: 42, area: 'Montrouge', commute: { [M]: 22, [G]: 27 }, status: 'contacte', lastActionAt: now - 6 * 864e5, history: hist(['repere', 8], ['contacte', 6]), ratings: { [M]: 3 }, photos: [pic('🪴', '#b9f0c8', '#8fd3ff')] }, M, 200);
+  add('flats', { title: 'T2 avenue d\'Italie', rent: 1180, charges: 95, surface: 40, area: 'Paris 13e', commute: { [M]: 20, [G]: 16 }, status: 'dossier', lastActionAt: now - 2 * 864e5, history: hist(['repere', 9, G], ['contacte', 7, G], ['visite', 5, G], ['dossier', 2]), ratings: { [M]: 4, [G]: 4 } }, G, 220);
+  add('flats', { title: 'T2 Malakoff', rent: 1020, charges: 70, surface: 36, area: 'Malakoff', commute: { [M]: 18, [G]: 30 }, status: 'refuse', lastActionAt: now - 3 * 864e5, history: hist(['repere', 12], ['contacte', 10], ['dossier', 7], ['refuse', 3]) }, M, 290);
+  // question du jour
+  const demoAns = (d, who, text) => { const q = qOf(d); add('answers', { id: d + '_' + who, date: d, user: who, text: q.t === 'who' ? (who === M ? G : M) : q.t === 'choice' ? (who === M ? 'a' : 'b') : text }, who, 2); };
+  const y = addDays(t, -1);
+  demoAns(y, M, 'Notre week-end à Biarritz, sans hésiter.'); demoAns(y, G, 'Le pique-nique improvisé sur les quais.');
+  demoAns(t, G, 'Une réponse qui t\'attend…');
+  // listes, dossiers, roue
+  for (const [id, name, emoji] of [['l_courses', 'Courses', '🛒'], ['l_restos', 'Restos à tester', '🍜'], ['l_films', 'Films et séries', '🎬'], ['l_sorties', 'Idées de sorties', '🎡']]) add('lists', { id, name, emoji });
+  [['l_courses', 'Lait d\'avoine'], ['l_courses', 'Parmesan'], ['l_courses', 'Café', true], ['l_restos', 'Le ramen de la rue Sainte-Anne'], ['l_restos', 'La trattoria du coin'], ['l_restos', 'Le bistrot étoilé pour une grande occasion'], ['l_sorties', 'Balade à vélo le long du canal'], ['l_sorties', 'Soirée jeux de société'], ['l_films', 'Finir la série du dimanche soir'], ['l_sorties', 'Expo à la Bourse de Commerce']].forEach(([list, text, done], i) => add('items', { list, text, done: !!done, lvl: /ramen|trattoria|jeux/.test(text) ? 1 : /étoilé/.test(text) ? 3 : /Expo/.test(text) ? 2 : 0 }, i % 2 ? G : M, i));
+  for (const [id, name, emoji] of [['d_loc', 'Dossier locataire', '🔑'], ['d_admin', 'Administratif', '🗂️'], ['d_voy', 'Voyages', '✈️']]) add('folders', { id, name, emoji });
+  ['Italien', 'Japonais', 'Burger', 'Thaï', 'Libanais', 'Crêpes', 'Pizza', 'On cuisine'].forEach((x, i) => add('wheel', { id: 'w_' + i, text: x }, M, -i));
+  // envies
+  add('wishes', { owner: M, text: 'Un casque audio', price: 150, reservedBy: G });
+  add('wishes', { owner: M, text: 'Le dernier thriller de la rentrée' });
+  add('wishes', { owner: G, text: 'Un cours de poterie', price: 60 }, G);
+  add('wishes', { owner: G, text: 'Un week-end à la mer' }, G);
+  // comptes à rebours
+  const yr = +t.slice(0, 4), noel = `${t > yr + '-12-25' ? yr + 1 : yr}-12-25`;
+  add('countdowns', { title: 'Noël', date: noel, emoji: '🎄' });
+  add('countdowns', { title: 'Week-end à deux', date: addDays(t, 23), emoji: '🧳' }, G);
+  // photos
+  [['🌊', '#7fc8ff', '#ffe1a8', 'Biarritz', 40], ['🍝', '#ffb3a8', '#ffd98f', 'Le resto du samedi', 12], ['🌇', '#ffa9cc', '#8f9bff', 'Coucher de soleil sur les quais', 5], ['🎶', '#c4b0ff', '#ff9fc6', 'Avant le concert', 2]]
+    .forEach(([e, a, b, caption, ago]) => add('photos', { fileId: pic(e, a, b), caption, date: addDays(t, -ago) }, ago % 2 ? G : M, ago * 24));
+  return { cols, files };
+};
+
+</script>
+<script>start();</script>
+</body>
+</html>
