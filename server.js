@@ -245,18 +245,26 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
   delete doc.hidden; delete doc.sealed;
   if (col === 'wishes' && prev && prev.owner === req.user.id) { if (prev.reservedBy) doc.reservedBy = prev.reservedBy; else delete doc.reservedBy; }
   if (col === 'profiles' && id !== '_couple' && id !== req.user.id) return res.status(403).json({ error: 'Pas ton profil' });
+  // Documents personnels dont l'identifiant se termine par celui de leur auteur : personne ne peut écrire à la place de l'autre.
+  if (['answers', 'moods', 'pokes', 'tlogs'].includes(col) && !id.endsWith('_' + req.user.id)) return res.status(403).json({ error: 'Pas à toi' });
   if (col === 'quiz') {
-    if (!prev) req.body.about = req.user.id;
-    else if (req.user.id === prev.about) { req.body.q = prev.q; if (prev.guess !== undefined) req.body.guess = prev.guess; else delete req.body.guess; }
-    else { req.body.q = prev.q; req.body.answer = prev.answer; if (prev.ok !== undefined) req.body.ok = prev.ok; else delete req.body.ok; }
-    if (prev) req.body.about = prev.about;
+    if (!prev) { doc.about = req.user.id; delete doc.guess; delete doc.ok; }
+    else {
+      doc.about = prev.about; doc.q = prev.q;
+      if (req.user.id === prev.about) { // la personne concernée : ne touche pas à la proposition de l'autre, ni à sa réponse une fois devinée
+        if (prev.guess !== undefined) { doc.guess = prev.guess; doc.answer = prev.answer; } else { delete doc.guess; delete doc.ok; }
+      } else { // celui qui devine : ne touche ni à la réponse ni au verdict
+        doc.answer = prev.answer; if (prev.ok !== undefined) doc.ok = prev.ok; else delete doc.ok;
+        if (prev.guess !== undefined) doc.guess = prev.guess;
+      }
+    }
   }
-  if (col === 'capsules' && prev) { if (prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); req.body.text = prev.text; req.body.openAt = prev.openAt; }
-  if (col === 'pokes') req.body.user = req.user.id;
+  if (col === 'capsules' && prev) { if (prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); doc.text = prev.text; doc.openAt = prev.openAt; }
+  if (col === 'pokes' || col === 'moods') doc.user = req.user.id;
   if (col === 'tlogs') {
-    const tr = getDoc('trackers', String((req.body || {}).tracker || ''));
+    const tr = getDoc('trackers', String(doc.tracker || ''));
     if (!tr || (tr.by !== req.user.id && tr.vis !== 'both')) return res.status(403).json({ error: 'Compteur inaccessible' });
-    req.body.user = req.user.id;
+    doc.user = req.user.id;
   }
   if ((col === 'scheduled' || col === 'moods' || col === 'cycles' || col === 'trackers' || col === 'tlogs' || col === 'pokes') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
   if (col === 'answers') { doc.user = req.user.id; if (prev && prev.user !== req.user.id) return res.status(403).json({ error: 'Pas ta réponse' }); }
