@@ -90,7 +90,16 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '1mb' }));
 
-const cookies = req => Object.fromEntries((req.headers.cookie || '').split(';').map(c => c.trim().split('=')).filter(p => p[0]).map(([k, ...v]) => [k, decodeURIComponent(v.join('='))]));
+// Les cookies des autres services de *.kratox.fr arrivent aussi ici : on ne lit que le nôtre, sans jamais planter sur une valeur exotique.
+const cookies = req => {
+  const out = {};
+  for (const part of (req.headers.cookie || '').split(';')) {
+    const i = part.indexOf('='); if (i < 0) continue;
+    const k = part.slice(0, i).trim(), v = part.slice(i + 1).trim();
+    if (k === 'nous_s' && /^[a-f0-9]{64}$/.test(v)) out.nous_s = v;
+  }
+  return out;
+};
 function setSession(res, token) {
   const parts = ['nous_s=' + (token || ''), 'Path=/', 'HttpOnly', 'SameSite=Lax', 'Max-Age=' + (token ? SESSION_DAYS * 86400 : 0)];
   if (COOKIE_SECURE) parts.push('Secure');
