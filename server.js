@@ -1,5 +1,5 @@
 'use strict';
-/* Nous — serveur : comptes (2 personnes), données partagées, fichiers, notifications push. */
+/* Nous — serveur : plusieurs couples isolés, inscription sur invitation, données partagées à deux, fichiers, notifications push. */
 const express = require('express');
 const Database = require('better-sqlite3');
 const argon2 = require('argon2');
@@ -16,34 +16,73 @@ const FILES = path.join(DATA, 'files');
 const COOKIE_SECURE = process.env.COOKIE_SECURE !== '0';
 const SESSION_DAYS = 90;
 const MAX_FILE = 25 * 1024 * 1024;
+const QUOTA = (+process.env.QUOTA_MB || 2048) * 1024 * 1024; // espace disque maximum par couple
 const TZ = 'Europe/Paris';
-// Villes proposées dans l'agenda : propres à chaque couple (fichier .env)
-const CITIES = (process.env.NOUS_CITIES || 'Paris,Bordeaux,Gif-sur-Yvette').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
+// Villes proposées par défaut dans l'agenda d'un nouveau couple (chaque couple les change dans Réglages)
+const CITIES = (process.env.NOUS_CITIES || 'Paris').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
+const LOGIN_RE = /^[a-z0-9][a-z0-9.-]{1,29}$/; // pas de « _ » : il sert de séparateur dans les identifiants de documents
 fs.mkdirSync(FILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
   'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs'];
 
 /* ---------- base ---------- */
+// Plusieurs couples dans une seule base : chaque donnée porte l'identifiant de son couple, et toute requête est filtrée dessus.
 const db = new Database(path.join(DATA, 'nous.db'));
 db.pragma('journal_mode = WAL');
 db.exec(`
-CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, name TEXT NOT NULL, hash TEXT NOT NULL, pos INTEGER);
+CREATE TABLE IF NOT EXISTS couples(id TEXT PRIMARY KEY, name TEXT, created INTEGER, rev INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, name TEXT NOT NULL, hash TEXT NOT NULL, pos INTEGER, couple TEXT, admin INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user TEXT NOT NULL, expires INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS docs(col TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, by TEXT, at INTEGER, PRIMARY KEY(col, id));
-CREATE TABLE IF NOT EXISTS files(id TEXT PRIMARY KEY, name TEXT, mime TEXT, size INTEGER, by TEXT, at INTEGER);
+CREATE TABLE IF NOT EXISTS docs(couple TEXT NOT NULL, col TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, by TEXT, at INTEGER, PRIMARY KEY(couple, col, id));
+CREATE TABLE IF NOT EXISTS files(id TEXT PRIMARY KEY, name TEXT, mime TEXT, size INTEGER, by TEXT, at INTEGER, couple TEXT);
 CREATE TABLE IF NOT EXISTS subs(endpoint TEXT PRIMARY KEY, user TEXT NOT NULL, sub TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS invites(id TEXT PRIMARY KEY, kind TEXT NOT NULL, couple TEXT, note TEXT, created_by TEXT, created INTEGER, expires INTEGER, used_by TEXT, used_at INTEGER);
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
 `);
 const getMeta = k => (db.prepare('SELECT v FROM meta WHERE k=?').get(k) || {}).v;
 const setMeta = (k, v) => db.prepare('INSERT INTO meta(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k, String(v));
-let rev = +(getMeta('rev') || 1);
-const bump = () => { rev++; setMeta('rev', rev); };
+const colsOf = t => db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name);
+
+// Migration d'une base à un seul couple (versions précédentes) : tout est rattaché au couple « c1 ».
+db.transaction(() => {
+  if (!colsOf('users').includes('couple')) { db.exec('ALTER TABLE users ADD COLUMN couple TEXT'); db.exec('ALTER TABLE users ADD COLUMN admin INTEGER NOT NULL DEFAULT 0'); }
+  if (!colsOf('files').includes('couple')) db.exec('ALTER TABLE files ADD COLUMN couple TEXT');
+  let legacy = false;
+  if (!colsOf('docs').includes('couple')) {
+    legacy = true;
+    db.exec(`CREATE TABLE docs2(couple TEXT NOT NULL, col TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, by TEXT, at INTEGER, PRIMARY KEY(couple, col, id));
+      INSERT INTO docs2 SELECT 'c1', col, id, data, by, at FROM docs; DROP TABLE docs; ALTER TABLE docs2 RENAME TO docs;`);
+  }
+  const orphans = db.prepare('SELECT id, name FROM users WHERE couple IS NULL ORDER BY pos').all();
+  if (orphans.length) {
+    if (!db.prepare("SELECT 1 FROM couples WHERE id='c1'").get())
+      db.prepare("INSERT INTO couples(id,name,created,rev) VALUES('c1',?,?,?)").run(orphans.map(u => u.name).join(' & '), Date.now(), +(getMeta('rev') || 1));
+    db.prepare("UPDATE users SET couple='c1' WHERE couple IS NULL").run();
+    legacy = true;
+  }
+  db.prepare("UPDATE files SET couple='c1' WHERE couple IS NULL").run();
+  if (legacy) { // les villes de l'agenda du premier couple étaient fixées dans le code : on les garde
+    const r = db.prepare("SELECT data FROM docs WHERE couple='c1' AND col='profiles' AND id='_couple'").get(), cp = r ? JSON.parse(r.data) : { id: '_couple', seeded: true };
+    if (!cp.cities) { cp.cities = (process.env.NOUS_CITIES || 'Paris,Bordeaux,Gif-sur-Yvette').split(',').map(s => s.trim()).filter(Boolean); db.prepare("INSERT INTO docs(couple,col,id,data,by,at) VALUES('c1','profiles','_couple',?,?,?) ON CONFLICT(couple,col,id) DO UPDATE SET data=excluded.data").run(JSON.stringify(cp), cp.by || null, Date.now()); }
+  }
+  if (!db.prepare('SELECT 1 FROM users WHERE admin=1').get()) { // l'administrateur : ADMIN dans .env, sinon la première personne du premier couple
+    const a = (process.env.ADMIN && db.prepare('SELECT id FROM users WHERE id=?').get(process.env.ADMIN)) || db.prepare("SELECT id FROM users WHERE couple='c1' ORDER BY pos LIMIT 1").get();
+    if (a) db.prepare('UPDATE users SET admin=1 WHERE id=?').run(a.id);
+  }
+})();
+db.exec('CREATE INDEX IF NOT EXISTS files_couple ON files(couple); CREATE INDEX IF NOT EXISTS users_couple ON users(couple);');
+
+const revs = new Map(db.prepare('SELECT id, rev FROM couples').all().map(c => [c.id, c.rev]));
+const revOf = c => revs.get(c) || 1;
+const bump = c => { const r = revOf(c) + 1; revs.set(c, r); db.prepare('UPDATE couples SET rev=? WHERE id=?').run(r, c); return r; };
 
 const sha = s => crypto.createHash('sha256').update(s).digest('hex');
-const users = () => db.prepare('SELECT id, name FROM users ORDER BY pos').all();
+const usersOf = c => db.prepare('SELECT id, name FROM users WHERE couple=? ORDER BY pos').all(c);
+const userById = id => db.prepare('SELECT id, name, couple, admin FROM users WHERE id=?').get(id);
 const today = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d); // AAAA-MM-JJ
 const hourNow = () => +new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hour12: false }).format(new Date());
+const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 30);
 
 /* ---------- clés push ---------- */
 let vapid = getMeta('vapid') ? JSON.parse(getMeta('vapid')) : null;
@@ -58,21 +97,25 @@ async function pushTo(userId, payload) {
   }));
   return rows.length;
 }
-const getDoc = (col, id) => { const r = db.prepare('SELECT data FROM docs WHERE col=? AND id=?').get(col, id); return r ? JSON.parse(r.data) : null; };
-const allDocs = col => db.prepare('SELECT data FROM docs WHERE col=?').all(col).map(r => JSON.parse(r.data));
-const wantsActivity = uid => (getDoc('profiles', uid) || {}).notifActivity !== false;
+const getDoc = (c, col, id) => { const r = db.prepare('SELECT data FROM docs WHERE couple=? AND col=? AND id=?').get(c, col, id); return r ? JSON.parse(r.data) : null; };
+const allDocs = (c, col) => db.prepare('SELECT data FROM docs WHERE couple=? AND col=?').all(c, col).map(r => JSON.parse(r.data));
+const saveDoc = (c, col, doc) => db.prepare('INSERT INTO docs(couple,col,id,data,by,at) VALUES(?,?,?,?,?,?) ON CONFLICT(couple,col,id) DO UPDATE SET data=excluded.data, at=excluded.at').run(c, col, doc.id, JSON.stringify(doc), doc.by || null, doc.at || Date.now());
+const delDoc = (c, col, id) => db.prepare('DELETE FROM docs WHERE couple=? AND col=? AND id=?').run(c, col, id);
+const wantsActivity = (c, uid) => (getDoc(c, 'profiles', uid) || {}).notifActivity !== false;
 
-/* ---------- comptes initiaux ---------- */
+/* ---------- comptes initiaux (premier démarrage uniquement) ---------- */
 async function initUsers() {
   if (db.prepare('SELECT COUNT(*) n FROM users').get().n) return;
   const spec = (process.env.INIT_USERS || '').split(';').map(s => s.trim()).filter(Boolean);
   if (!spec.length) { console.warn('[nous] Aucun compte : définis INIT_USERS="identifiant:Prénom:motdepasse;…" au premier démarrage.'); return; }
   let pos = 0;
+  db.prepare("INSERT OR IGNORE INTO couples(id,name,created,rev) VALUES('c1',?,?,1)").run(spec.map(s => s.split(':')[1]).join(' & '), Date.now());
+  revs.set('c1', revs.get('c1') || 1);
   for (const s of spec.slice(0, 2)) {
-    const [id, name, ...rest] = s.split(':'); const pwd = rest.join(':');
-    if (!id || !name || pwd.length < 8) { console.warn('[nous] Compte ignoré (mot de passe de 8 caractères minimum) :', id); continue; }
-    db.prepare('INSERT INTO users(id,name,hash,pos) VALUES(?,?,?,?)').run(id.toLowerCase(), name, await argon2.hash(pwd, { type: argon2.argon2id }), pos++);
-    console.log('[nous] Compte créé :', id.toLowerCase());
+    const [raw, name, ...rest] = s.split(':'); const id = String(raw || '').toLowerCase(), pwd = rest.join(':');
+    if (!LOGIN_RE.test(id) || !name || pwd.length < 8) { console.warn('[nous] Compte ignoré (identifiant en minuscules, mot de passe de 8 caractères minimum) :', id); continue; }
+    db.prepare("INSERT INTO users(id,name,hash,pos,couple,admin) VALUES(?,?,?,?,'c1',?)").run(id, cleanName(name), await argon2.hash(pwd, { type: argon2.argon2id }), pos, pos === 0 ? 1 : 0);
+    pos++; console.log('[nous] Compte créé :', id);
   }
 }
 
@@ -111,10 +154,12 @@ function auth(req, res, next) {
   const t = cookies(req).nous_s;
   const s = t && db.prepare('SELECT user, expires FROM sessions WHERE token=?').get(sha(t));
   if (!s || s.expires < Date.now()) return res.status(401).json({ error: 'Non connecté' });
-  req.user = db.prepare('SELECT id, name FROM users WHERE id=?').get(s.user);
-  if (!req.user) return res.status(401).json({ error: 'Non connecté' });
+  req.user = userById(s.user);
+  if (!req.user || !req.user.couple) return res.status(401).json({ error: 'Non connecté' });
+  req.c = req.user.couple; // le couple de la personne connectée : la seule portée de toutes ses requêtes
   next();
 }
+const adminOnly = (req, res, next) => req.user.admin ? next() : res.status(403).json({ error: 'Réservé à l\'administration' });
 // Toute écriture doit porter l'en-tête X-Nous : un site tiers ne peut pas l'ajouter (protection CSRF).
 app.use('/api', (req, res, next) => {
   if (req.method !== 'GET' && req.get('X-Nous') !== '1') return res.status(403).json({ error: 'Requête refusée' });
@@ -139,11 +184,71 @@ app.post('/api/login', async (req, res) => {
   try { ok = u ? await argon2.verify(u.hash, pwd) : (await argon2.hash(pwd), false); } catch (e) { ok = false; }
   if (!ok) { fail(kIp); fail(kUser); return res.status(401).json({ error: 'Identifiant ou mot de passe incorrect' }); }
   fails.delete(kUser);
+  openSession(res, u.id);
+  res.json({ ok: true });
+});
+function openSession(res, uid) {
   const token = crypto.randomBytes(32).toString('hex');
-  db.prepare('INSERT INTO sessions(token,user,expires) VALUES(?,?,?)').run(sha(token), u.id, Date.now() + SESSION_DAYS * 864e5);
+  db.prepare('INSERT INTO sessions(token,user,expires) VALUES(?,?,?)').run(sha(token), uid, Date.now() + SESSION_DAYS * 864e5);
   db.prepare('DELETE FROM sessions WHERE expires < ?').run(Date.now());
   setSession(res, token);
+}
+
+/* ---------- invitations et inscription ---------- */
+// Un code d'invitation n'est conservé que sous forme d'empreinte : il n'apparaît en clair qu'une fois, à sa création.
+const CODE_ABC = 'abcdefghjkmnpqrstuvwxyz23456789';
+const newCode = () => Array.from(crypto.randomBytes(14), b => CODE_ABC[b % CODE_ABC.length]).join('');
+function createInvite(kind, couple, by, note, days) {
+  const code = newCode();
+  db.prepare('INSERT INTO invites(id,kind,couple,note,created_by,created,expires) VALUES(?,?,?,?,?,?,?)').run(sha(code), kind, couple || null, cleanName(note) || null, by, Date.now(), Date.now() + days * 864e5);
+  return code;
+}
+function findInvite(code) {
+  if (!/^[a-z0-9]{10,20}$/.test(String(code || ''))) return null;
+  const i = db.prepare('SELECT * FROM invites WHERE id=?').get(sha(code));
+  if (!i || i.used_at || i.expires < Date.now()) return null;
+  if (i.kind === 'partner' && db.prepare('SELECT COUNT(*) n FROM users WHERE couple=?').get(i.couple).n >= 2) return null;
+  return i;
+}
+app.get('/api/invite/:code', (req, res) => {
+  const k = 'ip:' + req.ip;
+  if (blocked(k)) return res.status(429).json({ error: 'Trop de tentatives. Réessaie dans 15 minutes.' });
+  const i = findInvite(req.params.code);
+  if (!i) { fail(k); return res.status(404).json({ error: 'Ce lien d\'invitation n\'est plus valable. Demande-en un nouveau.' }); }
+  res.json({ kind: i.kind, partner: i.kind === 'partner' ? (usersOf(i.couple)[0] || {}).name : null });
+});
+app.post('/api/register', async (req, res) => {
+  const k = 'ip:' + req.ip, b = req.body || {};
+  if (blocked(k)) return res.status(429).json({ error: 'Trop de tentatives. Réessaie dans 15 minutes.' });
+  const login = String(b.login || '').trim().toLowerCase(), name = cleanName(b.name), pwd = String(b.password || '');
+  if (!LOGIN_RE.test(login)) return res.status(400).json({ error: 'Identifiant : 2 à 30 caractères, lettres minuscules, chiffres, points ou tirets.' });
+  if (!name) return res.status(400).json({ error: 'Indique ton prénom.' });
+  if (pwd.length < 10) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 10 caractères.' });
+  const hash = await argon2.hash(pwd, { type: argon2.argon2id });
+  let out;
+  try {
+    out = db.transaction(() => { // tout est revérifié dans la transaction : un lien ne peut servir qu'une fois
+      const i = findInvite(b.code);
+      if (!i) return { status: 404, error: 'Ce lien d\'invitation n\'est plus valable. Demande-en un nouveau.' };
+      if (db.prepare('SELECT 1 FROM users WHERE id=?').get(login)) return { status: 409, error: 'Cet identifiant est déjà pris, choisis-en un autre.' };
+      let couple = i.couple, pos = 1;
+      if (i.kind === 'couple') { couple = 'c' + crypto.randomBytes(6).toString('hex'); pos = 0; db.prepare('INSERT INTO couples(id,name,created,rev) VALUES(?,?,?,1)').run(couple, name, Date.now()); revs.set(couple, 1); }
+      else db.prepare('UPDATE couples SET name=? WHERE id=?').run(usersOf(couple).map(u => u.name).concat(name).join(' & '), couple);
+      db.prepare('INSERT INTO users(id,name,hash,pos,couple,admin) VALUES(?,?,?,?,?,0)').run(login, name, hash, pos, couple);
+      db.prepare('UPDATE invites SET used_by=?, used_at=? WHERE id=?').run(login, Date.now(), i.id);
+      bump(couple);
+      return { couple, kind: i.kind };
+    })();
+  } catch (e) { console.error(e); return res.status(500).json({ error: 'Inscription impossible' }); }
+  if (out.error) { if (out.status === 404) fail(k); return res.status(out.status).json({ error: out.error }); }
+  if (out.kind === 'partner') for (const u of usersOf(out.couple)) if (u.id !== login) pushTo(u.id, { title: 'Nous 🎉', body: `${name} a rejoint votre espace.`, tag: 'join', url: '/' }).catch(() => {});
+  openSession(res, login);
   res.json({ ok: true });
+});
+app.post('/api/partner-invite', auth, (req, res) => {
+  if (usersOf(req.c).length >= 2) return res.status(400).json({ error: 'Votre espace est déjà complet.' });
+  db.prepare("DELETE FROM invites WHERE kind='partner' AND couple=? AND used_at IS NULL").run(req.c);
+  res.json({ code: createInvite('partner', req.c, req.user.id, null, 7), days: 7 });
 });
 app.post('/api/logout', (req, res) => {
   const t = cookies(req).nous_s;
@@ -176,16 +281,17 @@ function viewFor(col, doc, me, mine, sharers, hiddenT) {
   return doc;
 }
 app.get('/api/sync', auth, (req, res) => {
+  const rev = revOf(req.c);
   if (+req.query.rev === rev) return res.json({ same: true, rev, v: VERSION });
   const me = req.user.id, cols = {};
-  const rows = db.prepare('SELECT col, data FROM docs').all();
+  const rows = db.prepare('SELECT col, data FROM docs WHERE couple=?').all(req.c);
   const parsed = rows.map(r => [r.col, JSON.parse(r.data)]);
   const mine = new Set(parsed.filter(([c, d]) => c === 'answers' && d.user === me).map(([, d]) => d.date));
   for (const c of COLS) cols[c] = {};
   const hiddenT = new Set(parsed.filter(([c, d]) => c === 'trackers' && d.by !== me && (d.vis || 'private') === 'private').map(([, d]) => d.id));
   const sharers = new Set(parsed.filter(([c, d]) => c === 'profiles' && d.shareCycle === true).map(([, d]) => d.id));
   for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers, hiddenT); if (v) cols[c][d.id] = v; }
-  res.json({ rev, me: req.user, users: users(), cols, vapid: vapid.publicKey, today: today(), v: VERSION, cities: CITIES });
+  res.json({ rev, me: { id: me, name: req.user.name, admin: !!req.user.admin }, users: usersOf(req.c), cols, vapid: vapid.publicKey, today: today(), v: VERSION, cities: CITIES });
 });
 
 const lastPing = new Map();
@@ -193,9 +299,10 @@ const cooled = (k, ms) => { const t = lastPing.get(k) || 0; if (Date.now() - t <
 const dm = iso => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '';
 const FLAT_ST = { repere: 'Repéré', contacte: 'Contacté', visite: 'Visite prévue', dossier: 'Dossier envoyé', accepte: 'Accepté 🎉', refuse: 'Refusé' };
 
-function notify(col, doc, prev, user) {
+function notify(c, col, doc, prev, user) {
+  const users = () => usersOf(c), getD = (col2, id) => getDoc(c, col2, id);
   const others = users().filter(u => u.id !== user.id);
-  const send = (p, always) => others.forEach(o => { if (always || wantsActivity(o.id)) pushTo(o.id, p).catch(() => {}); });
+  const send = (p, always) => others.forEach(o => { if (always || wantsActivity(c, o.id)) pushTo(o.id, p).catch(() => {}); });
   const n = user.name;
   if (col === 'notes' && !prev) return send({ title: n + ' 💌', body: String(doc.text || '').slice(0, 300), tag: 'mot-' + doc.id, url: '/#mots' }, true);
   if (col === 'events' && !prev && cooled('ev:' + user.id, 60e3)) return send({ title: 'Agenda', body: `${n} a ajouté « ${doc.title} » le ${dm(doc.date)}`, tag: 'agenda', url: '/#agenda' });
@@ -207,8 +314,8 @@ function notify(col, doc, prev, user) {
   }
   if (col === 'answers' && !prev) {
     return others.forEach(o => {
-      if (!wantsActivity(o.id)) return;
-      const done = getDoc('answers', doc.date + '_' + o.id);
+      if (!wantsActivity(c, o.id)) return;
+      const done = getD('answers', doc.date + '_' + o.id);
       pushTo(o.id, { title: 'Question du jour', body: done ? `${n} a répondu, viens voir vos réponses 👀` : `${n} a répondu. À toi !`, tag: 'question', url: '/#question' }).catch(() => {});
     });
   }
@@ -230,7 +337,7 @@ function notify(col, doc, prev, user) {
   if (col === 'potins' && !prev) return send({ title: 'Cagnotte 🏝️', body: `${n} a versé ${(+doc.amount || 0).toFixed(2).replace('.', ',')} €`, tag: 'cagnotte', url: '/#cagnotte' });
   if (col === 'songs' && !prev) return send({ title: 'Playlist 🎶', body: `${n} a ajouté ${doc.title}${doc.artist ? ' · ' + doc.artist : ''}`, tag: 'playlist', url: '/#playlist' });
   if (col === 'moods' && (!prev || prev.emoji !== doc.emoji) && cooled('mood:' + user.id, 20 * 60e3)) return send({ title: `Humeur de ${n}`, body: `${doc.emoji} ${doc.text || ''}`.trim(), tag: 'humeur', url: '/' });
-  if (col === 'cycles' && !prev && (getDoc('profiles', user.id) || {}).shareCycle === true && doc.start >= today(new Date(Date.now() - 2 * 864e5))) return send({ title: 'Cycle 🌸', body: `${n} a indiqué le début de ses règles. C'est le moment d'être aux petits soins.`, tag: 'cycle', url: '/#cycle' }, true);
+  if (col === 'cycles' && !prev && (getD('profiles', user.id) || {}).shareCycle === true && doc.start >= today(new Date(Date.now() - 2 * 864e5))) return send({ title: 'Cycle 🌸', body: `${n} a indiqué le début de ses règles. C'est le moment d'être aux petits soins.`, tag: 'cycle', url: '/#cycle' }, true);
   if (col === 'coupons') {
     if (!prev) return send({ title: 'Un bon pour toi 🎟️', body: `${n} t'offre : ${doc.title}`, tag: 'bon-' + doc.id, url: '/#bons' }, true);
     if (!prev.usedAt && doc.usedAt) return send({ title: 'Bon utilisé 🎟️', body: `${n} utilise son bon : ${doc.title}`, tag: 'bon-' + doc.id, url: '/#bons' }, true);
@@ -242,7 +349,7 @@ function notify(col, doc, prev, user) {
 app.put('/api/c/:col/:id', auth, (req, res) => {
   const { col, id } = req.params;
   if (!COLS.includes(col) || !/^[\w.-]{1,80}$/.test(id)) return res.status(400).json({ error: 'Collection inconnue' });
-  const prev = getDoc(col, id);
+  const C = req.c, prev = getDoc(C, col, id);
   const doc = { ...(req.body || {}), id, by: prev ? prev.by : req.user.id, at: Date.now() };
   delete doc.hidden; delete doc.sealed;
   if (col === 'wishes' && prev && prev.owner === req.user.id) { if (prev.reservedBy) doc.reservedBy = prev.reservedBy; else delete doc.reservedBy; }
@@ -264,26 +371,25 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
   if (col === 'capsules' && prev) { if (prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); doc.text = prev.text; doc.openAt = prev.openAt; }
   if (col === 'pokes' || col === 'moods') doc.user = req.user.id;
   if (col === 'tlogs') {
-    const tr = getDoc('trackers', String(doc.tracker || ''));
+    const tr = getDoc(C, 'trackers', String(doc.tracker || ''));
     if (!tr || (tr.by !== req.user.id && tr.vis !== 'both')) return res.status(403).json({ error: 'Compteur inaccessible' });
     doc.user = req.user.id;
   }
   if ((col === 'scheduled' || col === 'moods' || col === 'cycles' || col === 'trackers' || col === 'tlogs' || col === 'pokes') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
   if (col === 'answers') { doc.user = req.user.id; if (prev && prev.user !== req.user.id) return res.status(403).json({ error: 'Pas ta réponse' }); }
-  db.prepare('INSERT INTO docs(col,id,data,by,at) VALUES(?,?,?,?,?) ON CONFLICT(col,id) DO UPDATE SET data=excluded.data, at=excluded.at')
-    .run(col, id, JSON.stringify(doc), doc.by, doc.at);
-  bump();
-  try { notify(col, doc, prev, req.user); } catch (e) { console.error(e); }
+  saveDoc(C, col, doc);
+  const rev = bump(C);
+  try { notify(C, col, doc, prev, req.user); } catch (e) { console.error(e); }
   res.json({ ok: true, rev });
 });
 app.delete('/api/c/:col/:id', auth, (req, res) => {
   const { col, id } = req.params;
   if (!COLS.includes(col)) return res.status(400).json({ error: 'Collection inconnue' });
-  if (col === 'trackers') { const p = getDoc(col, id); if (p && p.by === req.user.id) for (const l of allDocs('tlogs')) if (l.tracker === id) db.prepare('DELETE FROM docs WHERE col=? AND id=?').run('tlogs', l.id); }
-  if (col === 'scheduled' || col === 'cycles' || col === 'trackers' || col === 'tlogs' || col === 'capsules') { const p = getDoc(col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
-  db.prepare('DELETE FROM docs WHERE col=? AND id=?').run(col, id);
-  bump();
-  res.json({ ok: true, rev });
+  const C = req.c;
+  if (['scheduled', 'cycles', 'trackers', 'tlogs', 'capsules', 'pokes', 'moods', 'answers'].includes(col)) { const p = getDoc(C, col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
+  if (col === 'trackers') for (const l of allDocs(C, 'tlogs')) if (l.tracker === id) delDoc(C, 'tlogs', l.id);
+  delDoc(C, col, id);
+  res.json({ ok: true, rev: bump(C) });
 });
 
 /* ---------- fichiers ---------- */
@@ -296,15 +402,17 @@ app.post('/api/files', auth, (req, res) => {
     if (err) return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Fichier trop lourd (25 Mo maximum)' : 'Envoi impossible' });
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier' });
     const f = req.file;
+    const used = db.prepare('SELECT COALESCE(SUM(size),0) s FROM files WHERE couple=?').get(req.c).s;
+    if (used + f.size > QUOTA) { fs.unlink(f.path, () => {}); return res.status(400).json({ error: `Espace plein (${Math.round(QUOTA / 1048576)} Mo). Supprimez des photos ou des documents.` }); }
     const name = Buffer.from(f.originalname, 'latin1').toString('utf8').replace(/[\r\n"\\/]/g, '_').slice(0, 200);
     const meta = { id: f.filename, name, mime: f.mimetype || 'application/octet-stream', size: f.size };
-    db.prepare('INSERT INTO files(id,name,mime,size,by,at) VALUES(?,?,?,?,?,?)').run(meta.id, meta.name, meta.mime, meta.size, req.user.id, Date.now());
+    db.prepare('INSERT INTO files(id,name,mime,size,by,at,couple) VALUES(?,?,?,?,?,?,?)').run(meta.id, meta.name, meta.mime, meta.size, req.user.id, Date.now(), req.c);
     res.json(meta);
   });
 });
 const INLINE = /^(image\/(jpeg|png|gif|webp|heic|avif)|application\/pdf)$/;
 app.get('/api/files/:id', auth, (req, res) => {
-  const f = db.prepare('SELECT * FROM files WHERE id=?').get(req.params.id);
+  const f = db.prepare('SELECT * FROM files WHERE id=? AND couple=?').get(req.params.id, req.c);
   if (!f || !/^[a-f0-9]{32}$/.test(f.id)) return res.status(404).end();
   const inline = INLINE.test(f.mime);
   res.set({
@@ -316,7 +424,7 @@ app.get('/api/files/:id', auth, (req, res) => {
   fs.createReadStream(path.join(FILES, f.id)).on('error', () => res.status(404).end()).pipe(res);
 });
 app.delete('/api/files/:id', auth, (req, res) => {
-  const f = db.prepare('SELECT id FROM files WHERE id=?').get(req.params.id);
+  const f = db.prepare('SELECT id FROM files WHERE id=? AND couple=?').get(req.params.id, req.c);
   if (f && /^[a-f0-9]{32}$/.test(f.id)) { db.prepare('DELETE FROM files WHERE id=?').run(f.id); fs.unlink(path.join(FILES, f.id), () => {}); }
   res.json({ ok: true });
 });
@@ -343,11 +451,15 @@ async function daily() {
   const t = today();
   if (hourNow() < 9 || getMeta('daily') === t) return;
   setMeta('daily', t);
-  const us = users(); if (!us.length) return;
+  for (const { id } of db.prepare('SELECT id FROM couples').all()) { try { await dailyFor(id, t); } catch (e) { console.error(e); } }
+}
+async function dailyFor(c, t) {
+  const us = usersOf(c); if (!us.length) return;
+  const allDocs2 = col => allDocs(c, col), getDoc2 = (col, id) => getDoc(c, col, id);
   const all = p => Promise.all(us.map(u => pushTo(u.id, p).catch(() => {})));
   const q = QUESTIONS[qIndex(t)];
   await all({ title: 'Question du jour 💬', body: q.t === 'choice' ? `${q.q} ${q.a} ou ${q.b} ?` : q.q, tag: 'question', url: '/#question' });
-  for (const f of allDocs('flats')) {
+  for (const f of allDocs2('flats')) {
     if (f.visitAt && String(f.visitAt).slice(0, 10) === t && f.status === 'visite')
       await all({ title: 'Visite aujourd\'hui 🔑', body: `${f.title}${f.visitAt.length > 10 ? ' à ' + f.visitAt.slice(11, 16) : ''}`, tag: 'flat-' + f.id, url: '/#appart' });
     if (f.status === 'contacte' || f.status === 'dossier') {
@@ -355,45 +467,89 @@ async function daily() {
       if ([5, 9, 14].includes(days)) await all({ title: 'Relance à faire 📞', body: `${f.title} : sans nouvelles depuis ${days} jours`, tag: 'flat-' + f.id, url: '/#appart' });
     }
   }
-  for (const m of allDocs('milestones')) if (m.date && m.date.slice(4) === t.slice(4) && m.date < t) { const n = +t.slice(0, 4) - +m.date.slice(0, 4); await all({ title: `Il y a ${n} an${n > 1 ? 's' : ''} aujourd'hui ✨`, body: m.title, tag: 'ms-' + m.id, url: '/#histoire' }); }
-  const since = (getDoc('profiles', '_couple') || {}).since;
+  for (const m of allDocs2('milestones')) if (m.date && m.date.slice(4) === t.slice(4) && m.date < t) { const n = +t.slice(0, 4) - +m.date.slice(0, 4); await all({ title: `Il y a ${n} an${n > 1 ? 's' : ''} aujourd'hui ✨`, body: m.title, tag: 'ms-' + m.id, url: '/#histoire' }); }
+  const since = (getDoc2('profiles', '_couple') || {}).since;
   if (since && since.slice(4) === t.slice(4) && since < t) { const n = +t.slice(0, 4) - +since.slice(0, 4); await all({ title: `${n} an${n > 1 ? 's' : ''} ensemble 🥂`, body: 'Joyeux anniversaire à vous deux.', tag: 'anniv', url: '/#histoire' }); }
   // règles estimées dans 2 jours : rappel à la personne, et à l'autre seulement si le suivi est partagé
   const addD = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
   const diff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
-  const cyc = allDocs('cycles');
+  const cyc = allDocs2('cycles');
   for (const u of us) {
     const starts = cyc.filter(c => c.by === u.id && c.start).map(c => c.start).sort(); if (!starts.length) continue;
     const gaps = []; for (let i = 1; i < starts.length; i++) { const g = diff(starts[i - 1], starts[i]); if (g >= 15 && g <= 60) gaps.push(g); }
     const last6 = gaps.slice(-6), avg = last6.length ? Math.round(last6.reduce((a, b) => a + b, 0) / last6.length) : 28;
     if (addD(starts[starts.length - 1], avg) !== addD(t, 2)) continue;
     await pushTo(u.id, { title: 'Cycle 🌸', body: 'Tes règles sont estimées dans 2 jours.', tag: 'cycle', url: '/#cycle' }).catch(() => {});
-    if ((getDoc('profiles', u.id) || {}).shareCycle === true) for (const o of us) if (o.id !== u.id) await pushTo(o.id, { title: 'Cycle 🌸', body: `Les règles de ${u.name} sont estimées dans 2 jours.`, tag: 'cycle', url: '/#cycle' }).catch(() => {});
+    if ((getDoc2('profiles', u.id) || {}).shareCycle === true) for (const o of us) if (o.id !== u.id) await pushTo(o.id, { title: 'Cycle 🌸', body: `Les règles de ${u.name} sont estimées dans 2 jours.`, tag: 'cycle', url: '/#cycle' }).catch(() => {});
   }
-  for (const c of allDocs('chores')) if (c.next === t && c.turn) await pushTo(c.turn, { title: 'À faire aujourd\'hui 🧹', body: `${c.title} : c'est ton tour`, tag: 'tache-' + c.id, url: '/#taches' }).catch(() => {});
-  for (const c of allDocs('capsules')) if (c.openAt === t) await all({ title: 'Une capsule s\'ouvre 💊', body: c.title, tag: 'capsule', url: '/#capsules' });
+  for (const c of allDocs2('chores')) if (c.next === t && c.turn) await pushTo(c.turn, { title: 'À faire aujourd\'hui 🧹', body: `${c.title} : c'est ton tour`, tag: 'tache-' + c.id, url: '/#taches' }).catch(() => {});
+  for (const c of allDocs2('capsules')) if (c.openAt === t) await all({ title: 'Une capsule s\'ouvre 💊', body: c.title, tag: 'capsule', url: '/#capsules' });
   if (new Date(t + 'T12:00:00Z').getUTCDay() === 1 && QUESTIONS.defis) { const L = QUESTIONS.defis, k = Math.floor((Date.parse(t) - Date.parse('2026-01-05')) / (7 * 864e5)); await all({ title: 'Défi de la semaine 🏅', body: L[((k % L.length) + L.length) % L.length], tag: 'defi', url: '/#defi' }); }
   if (t.slice(8) === '01') await all({ title: 'Votre bilan du mois est prêt 📅', body: 'Jours ensemble, mots échangés, photos : le récap vous attend.', tag: 'bilan', url: '/#bilan' });
-  for (const c of allDocs('countdowns')) if (c.date === t) await all({ title: 'C\'est aujourd\'hui ! 🎉', body: c.title, tag: 'cd-' + c.id, url: '/#rebours' });
+  for (const c of allDocs2('countdowns')) if (c.date === t) await all({ title: 'C\'est aujourd\'hui ! 🎉', body: c.title, tag: 'cd-' + c.id, url: '/#rebours' });
 }
 setInterval(() => daily().catch(e => console.error(e)), 5 * 60e3);
 
 /* ---------- mots programmés : livrés à l'heure choisie (heure de Paris) ---------- */
 const nowLocal = () => new Intl.DateTimeFormat('sv-SE', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date()).replace(' ', 'T');
 function deliverScheduled() {
-  const now = nowLocal(); let n = 0;
-  for (const s of allDocs('scheduled')) {
+  const now = nowLocal(), touched = new Set();
+  for (const r of db.prepare("SELECT couple, data FROM docs WHERE col='scheduled'").all()) {
+    const c = r.couple, s = JSON.parse(r.data);
     if (!s.sendAt || s.sendAt > now) continue;
-    const author = db.prepare('SELECT id, name FROM users WHERE id=?').get(s.by);
-    db.prepare('DELETE FROM docs WHERE col=? AND id=?').run('scheduled', s.id); n++;
-    if (!author) continue;
+    const author = userById(s.by);
+    delDoc(c, 'scheduled', s.id); touched.add(c);
+    if (!author || author.couple !== c) continue;
     const note = { id: 'n' + crypto.randomBytes(8).toString('hex'), text: s.text, to: s.to, by: s.by, at: Date.now() };
-    db.prepare('INSERT INTO docs(col,id,data,by,at) VALUES(?,?,?,?,?)').run('notes', note.id, JSON.stringify(note), note.by, note.at);
-    notify('notes', note, null, author);
+    saveDoc(c, 'notes', note);
+    notify(c, 'notes', note, null, author);
   }
-  if (n) bump();
+  for (const c of touched) bump(c);
 }
 setInterval(() => { try { deliverScheduled(); } catch (e) { console.error(e); } }, 20e3);
+
+/* ---------- administration ---------- */
+// L'administration voit qui utilise l'app et combien de place ça prend, jamais le contenu des couples.
+app.get('/api/admin', auth, adminOnly, (req, res) => {
+  const couples = db.prepare('SELECT id, name, created FROM couples ORDER BY created').all().map(c => ({
+    id: c.id, created: c.created, mine: c.id === req.c,
+    users: usersOf(c.id),
+    items: db.prepare('SELECT COUNT(*) n FROM docs WHERE couple=?').get(c.id).n,
+    bytes: db.prepare('SELECT COALESCE(SUM(size),0) s FROM files WHERE couple=?').get(c.id).s,
+    lastSeen: db.prepare('SELECT MAX(at) a FROM docs WHERE couple=?').get(c.id).a || c.created
+  }));
+  const invites = db.prepare("SELECT id, note, created, expires FROM invites WHERE kind='couple' AND used_at IS NULL AND expires > ? ORDER BY created DESC").all(Date.now()).map(i => ({ ...i, id: i.id.slice(0, 16) }));
+  res.json({ couples, invites, quota: QUOTA });
+});
+app.post('/api/admin/invite', auth, adminOnly, (req, res) => res.json({ code: createInvite('couple', null, req.user.id, (req.body || {}).note, 14), days: 14 }));
+app.delete('/api/admin/invite/:id', auth, adminOnly, (req, res) => {
+  if (!/^[a-f0-9]{16}$/.test(req.params.id)) return res.status(400).json({ error: 'Invitation inconnue' });
+  db.prepare("DELETE FROM invites WHERE kind='couple' AND used_at IS NULL AND substr(id,1,16)=?").run(req.params.id);
+  res.json({ ok: true });
+});
+app.post('/api/admin/reset', auth, adminOnly, async (req, res) => {
+  const u = userById(String((req.body || {}).user || ''));
+  if (!u) return res.status(404).json({ error: 'Compte introuvable' });
+  const pwd = newCode().slice(0, 12);
+  db.prepare('UPDATE users SET hash=? WHERE id=?').run(await argon2.hash(pwd, { type: argon2.argon2id }), u.id);
+  db.prepare('DELETE FROM sessions WHERE user=?').run(u.id);
+  res.json({ password: pwd });
+});
+app.post('/api/admin/delete-couple', auth, adminOnly, (req, res) => {
+  const c = String((req.body || {}).couple || '');
+  if (c === req.c) return res.status(400).json({ error: 'Tu ne peux pas supprimer ton propre espace d\'ici.' });
+  if (!db.prepare('SELECT 1 FROM couples WHERE id=?').get(c)) return res.status(404).json({ error: 'Espace introuvable' });
+  const files = db.prepare('SELECT id FROM files WHERE couple=?').all(c);
+  db.transaction(() => {
+    for (const u of usersOf(c)) { db.prepare('DELETE FROM sessions WHERE user=?').run(u.id); db.prepare('DELETE FROM subs WHERE user=?').run(u.id); }
+    for (const t of ['docs', 'files', 'users']) db.prepare(`DELETE FROM ${t} WHERE couple=?`).run(c);
+    db.prepare('DELETE FROM invites WHERE couple=?').run(c);
+    db.prepare('DELETE FROM couples WHERE id=?').run(c);
+  })();
+  for (const f of files) if (/^[a-f0-9]{32}$/.test(f.id)) fs.unlink(path.join(FILES, f.id), () => {});
+  revs.delete(c);
+  res.json({ ok: true });
+});
 
 /* ---------- fichiers statiques ---------- */
 // Chaque version de l'app a une empreinte : les adresses des scripts changent à chaque mise à jour,

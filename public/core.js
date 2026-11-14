@@ -83,7 +83,11 @@ function checkVersion(v) {
   const go2 = () => location.reload();
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
 }
-function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; if (j.cities && typeof setCities === 'function') setCities(j.cities); }
+function applySync(j) {
+  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid;
+  const own = ((j.cols.profiles || {})._couple || {}).cities; // les villes choisies par le couple, sinon celles par défaut du serveur
+  if (typeof setCities === 'function') setCities(own && own.length ? own : j.cities);
+}
 const Remote = {
   async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
   async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if (j.same) return false; applySync(j); return true; },
@@ -340,7 +344,7 @@ function showLogin() {
   const form = h('form', {
     class: 'glass card login', onsubmit: async e => {
       e.preventDefault(); err.textContent = '';
-      try { await B.login(v.login, v.password); if (await B.boot()) enter(); else err.textContent = 'Connexion impossible'; }
+      try { await B.login(v.login, v.password); if (await B.boot()) route(); else err.textContent = 'Connexion impossible'; }
       catch (ex) { err.textContent = ex.message; }
     }
   },
@@ -350,9 +354,69 @@ function showLogin() {
     h('div', { class: 'f' }, h('label', { htmlFor: 'l_pwd' }, 'Mot de passe'), h('input', { class: 'inp', id: 'l_pwd', type: 'password', autocomplete: 'current-password', value: v.password, oninput: e => v.password = e.target.value })),
     err,
     h('button', { class: 'btn pri full', type: 'submit' }, 'Se connecter'),
-    S.demo && h('p', { class: 'small faint center' }, 'Version de démonstration : identifiant « mathis » ou « morgane », mot de passe libre. Les données restent sur cet appareil.'));
+    S.demo ? h('p', { class: 'small faint center' }, 'Version de démonstration : identifiant « mathis » ou « morgane », mot de passe libre. Les données restent sur cet appareil.')
+      : h('p', { class: 'small faint center' }, 'Pas encore de compte ? L\'inscription se fait avec un lien d\'invitation.'));
   $('#app').replaceChildren(form);
 }
+
+/* ----- inscription par lien d'invitation ----- */
+async function showRegister(code) {
+  $('#tabs').hidden = true;
+  let info;
+  try { info = await api('GET', '/api/invite/' + encodeURIComponent(code)); }
+  catch (e) { try { history.replaceState(null, '', '/'); } catch (x) { } showLogin(); const p = $('.login .bad'); if (p) p.textContent = e.message; return; }
+  const v = { name: '', login: '', password: '', confirm: '' }, err = h('p', { class: 'small bad', role: 'alert' });
+  const field = (k, label, attrs, hint) => h('div', { class: 'f' }, h('label', { htmlFor: 'r_' + k }, label), h('input', { class: 'inp', id: 'r_' + k, ...attrs, oninput: e => { v[k] = e.target.value; if (k === 'name' && !v.loginTouched) { v.login = suggestLogin(v.name); $('#r_login').value = v.login; } if (k === 'login') v.loginTouched = true; } }), hint && h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, hint));
+  const form = h('form', {
+    class: 'glass card login', onsubmit: async e => {
+      e.preventDefault(); err.textContent = '';
+      if (v.password !== v.confirm) { err.textContent = 'Les deux mots de passe ne sont pas identiques.'; return; }
+      const btn = $('button[type=submit]', form); btn.disabled = true;
+      try {
+        await api('POST', '/api/register', { code, name: v.name, login: v.login, password: v.password });
+        try { history.replaceState(null, '', '/'); } catch (x) { }
+        if (await B.boot()) route();
+      } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+    }
+  },
+    h('div', { class: 'logo' }, 'Nous'),
+    h('p', { class: 'mid' }, info.kind === 'partner' ? `${info.partner} t'invite dans votre espace à deux` : 'Bienvenue ! Crée votre espace à deux'),
+    h('p', { class: 'small muted' }, info.kind === 'partner' ? 'Crée ton compte : vous retrouverez tout ensemble, agenda, comptes, petits mots.' : 'Crée ton compte. Tu recevras ensuite un lien à envoyer à ta moitié pour qu\'elle te rejoigne.'),
+    field('name', 'Ton prénom', { autocomplete: 'given-name', maxLength: 30, required: true }),
+    field('login', 'Identifiant de connexion', { autocomplete: 'username', autocapitalize: 'none', maxLength: 30, required: true }, 'Lettres minuscules, chiffres, points ou tirets.'),
+    field('password', 'Mot de passe', { type: 'password', autocomplete: 'new-password', minLength: 10, required: true }, '10 caractères minimum.'),
+    field('confirm', 'Confirme le mot de passe', { type: 'password', autocomplete: 'new-password', required: true }),
+    err, h('button', { class: 'btn pri full', type: 'submit' }, 'Créer mon compte'));
+  $('#app').replaceChildren(form);
+}
+const suggestLogin = n => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9.-]+/g, '').slice(0, 30);
+
+/* ----- en attente du ou de la partenaire ----- */
+function showWaitPartner() {
+  $('#tabs').hidden = true;
+  const box = h('div', { class: 'col' }), err = h('p', { class: 'small bad', role: 'alert' });
+  const make = async () => {
+    err.textContent = '';
+    try {
+      const r = await api('POST', '/api/partner-invite', {}), link = `${location.origin}/?invitation=${r.code}`;
+      box.replaceChildren(...[
+        h('input', { class: 'inp', id: 'w_link', readOnly: true, value: link, 'aria-label': 'Lien d\'invitation', onfocus: e => e.target.select() }),
+        h('button', { class: 'btn pri full', onclick: async () => { try { await navigator.clipboard.writeText(link); toast('Lien copié'); } catch (e) { $('#w_link').select(); toast('Sélectionne le lien et copie-le'); } } }, 'Copier le lien'),
+        navigator.share ? h('button', { class: 'btn full', onclick: () => navigator.share({ title: 'Nous', text: 'Rejoins-moi sur Nous, notre espace à deux 💗', url: link }).catch(() => { }) }, 'Envoyer…') : null,
+        h('p', { class: 'small faint' }, `Valable ${r.days} jours, pour une seule personne.`)].filter(Boolean));
+    } catch (e) { err.textContent = e.message; }
+  };
+  $('#app').replaceChildren(h('section', { class: 'glass card login' },
+    h('div', { class: 'logo' }, 'Nous'),
+    h('p', { class: 'mid' }, `Ton espace est prêt, ${S.me.name} ✨`),
+    h('p', { class: 'muted' }, 'Il ne manque plus que ta moitié. Envoie-lui ce lien : dès qu\'elle a créé son compte, l\'app s\'ouvre ici toute seule.'),
+    box, err,
+    h('button', { class: 'btn full danger', onclick: async () => { clearInterval(showWaitPartner.t); try { await B.logout(); } catch (e) { } S.me = null; showLogin(); } }, 'Se déconnecter')));
+  make();
+  clearInterval(showWaitPartner.t);
+  showWaitPartner.t = setInterval(async () => { try { if (await B.sync() && S.users.length >= 2) { clearInterval(showWaitPartner.t); toast(`${other().name} vous a rejoints 🎉`); route(); } } catch (e) { } }, 4000);
+}
+function route() { if (!S.demo && S.users.length < 2) showWaitPartner(); else enter(); }
 function ensureDefaults() {
   if (couple().seeded) return;
   B.put('profiles', S.cols.profiles._couple = { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 0, by: S.me.id, at: Date.now() }).catch(() => { });
@@ -378,5 +442,7 @@ function enter() {
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; });
 async function start() {
   S.demo = !!window.NOUS_DEMO; B = S.demo ? Demo : Remote;
-  if (await B.boot()) enter(); else showLogin();
+  let code = null; try { code = new URLSearchParams(location.search).get('invitation'); } catch (e) { }
+  if (code && !S.demo) { if (await B.boot()) { try { history.replaceState(null, '', '/'); } catch (e) { } route(); } else showRegister(code); return; }
+  if (await B.boot()) route(); else showLogin();
 }

@@ -22,7 +22,22 @@ tribunal, défi de la semaine, quiz, capsules, trophées, bilan du mois, playlis
 Le script reprend le réseau, le point d'entrée et le résolveur de certificats d'un service déjà en place,
 puis branche Nous dessus. La configuration Nginx de `deploy/` ne sert alors pas.
 
-## Une copie pour un autre couple
+## Inviter d'autres couples
+
+Une seule app, une seule base : chaque couple a son espace, totalement séparé des autres. L'inscription n'est possible
+qu'avec un lien d'invitation.
+
+1. Plus → ⚙️ Réglages → **Administration** → « Inviter un couple ». Le lien est valable 14 jours, une seule fois.
+2. La personne qui l'ouvre crée son compte, puis reçoit un lien à envoyer à son ou sa partenaire (valable 7 jours).
+3. Dès que les deux comptes existent, l'app s'ouvre pour eux.
+
+L'administration (réservée à la variable `ADMIN` du `.env`, sinon à la première personne du premier couple) liste
+les espaces, la place occupée, permet de réinitialiser un mot de passe ou de supprimer un espace. Elle ne donne
+accès à aucun contenu. Espace disque par couple : `QUOTA_MB` (2048 par défaut).
+
+La mise à jour depuis une version précédente migre automatiquement les données existantes dans le premier espace.
+
+## Une copie séparée pour un autre couple (ancienne méthode)
 
 Chaque couple a sa propre copie : son adresse, ses deux comptes, sa base de données. Depuis ta copie principale :
 

@@ -518,7 +518,11 @@ function checkVersion(v) {
   const go2 = () => location.reload();
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
 }
-function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; if (j.cities && typeof setCities === 'function') setCities(j.cities); }
+function applySync(j) {
+  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid;
+  const own = ((j.cols.profiles || {})._couple || {}).cities; // les villes choisies par le couple, sinon celles par défaut du serveur
+  if (typeof setCities === 'function') setCities(own && own.length ? own : j.cities);
+}
 const Remote = {
   async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
   async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if (j.same) return false; applySync(j); return true; },
@@ -775,7 +779,7 @@ function showLogin() {
   const form = h('form', {
     class: 'glass card login', onsubmit: async e => {
       e.preventDefault(); err.textContent = '';
-      try { await B.login(v.login, v.password); if (await B.boot()) enter(); else err.textContent = 'Connexion impossible'; }
+      try { await B.login(v.login, v.password); if (await B.boot()) route(); else err.textContent = 'Connexion impossible'; }
       catch (ex) { err.textContent = ex.message; }
     }
   },
@@ -785,9 +789,69 @@ function showLogin() {
     h('div', { class: 'f' }, h('label', { htmlFor: 'l_pwd' }, 'Mot de passe'), h('input', { class: 'inp', id: 'l_pwd', type: 'password', autocomplete: 'current-password', value: v.password, oninput: e => v.password = e.target.value })),
     err,
     h('button', { class: 'btn pri full', type: 'submit' }, 'Se connecter'),
-    S.demo && h('p', { class: 'small faint center' }, 'Version de démonstration : identifiant « mathis » ou « morgane », mot de passe libre. Les données restent sur cet appareil.'));
+    S.demo ? h('p', { class: 'small faint center' }, 'Version de démonstration : identifiant « mathis » ou « morgane », mot de passe libre. Les données restent sur cet appareil.')
+      : h('p', { class: 'small faint center' }, 'Pas encore de compte ? L\'inscription se fait avec un lien d\'invitation.'));
   $('#app').replaceChildren(form);
 }
+
+/* ----- inscription par lien d'invitation ----- */
+async function showRegister(code) {
+  $('#tabs').hidden = true;
+  let info;
+  try { info = await api('GET', '/api/invite/' + encodeURIComponent(code)); }
+  catch (e) { try { history.replaceState(null, '', '/'); } catch (x) { } showLogin(); const p = $('.login .bad'); if (p) p.textContent = e.message; return; }
+  const v = { name: '', login: '', password: '', confirm: '' }, err = h('p', { class: 'small bad', role: 'alert' });
+  const field = (k, label, attrs, hint) => h('div', { class: 'f' }, h('label', { htmlFor: 'r_' + k }, label), h('input', { class: 'inp', id: 'r_' + k, ...attrs, oninput: e => { v[k] = e.target.value; if (k === 'name' && !v.loginTouched) { v.login = suggestLogin(v.name); $('#r_login').value = v.login; } if (k === 'login') v.loginTouched = true; } }), hint && h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, hint));
+  const form = h('form', {
+    class: 'glass card login', onsubmit: async e => {
+      e.preventDefault(); err.textContent = '';
+      if (v.password !== v.confirm) { err.textContent = 'Les deux mots de passe ne sont pas identiques.'; return; }
+      const btn = $('button[type=submit]', form); btn.disabled = true;
+      try {
+        await api('POST', '/api/register', { code, name: v.name, login: v.login, password: v.password });
+        try { history.replaceState(null, '', '/'); } catch (x) { }
+        if (await B.boot()) route();
+      } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+    }
+  },
+    h('div', { class: 'logo' }, 'Nous'),
+    h('p', { class: 'mid' }, info.kind === 'partner' ? `${info.partner} t'invite dans votre espace à deux` : 'Bienvenue ! Crée votre espace à deux'),
+    h('p', { class: 'small muted' }, info.kind === 'partner' ? 'Crée ton compte : vous retrouverez tout ensemble, agenda, comptes, petits mots.' : 'Crée ton compte. Tu recevras ensuite un lien à envoyer à ta moitié pour qu\'elle te rejoigne.'),
+    field('name', 'Ton prénom', { autocomplete: 'given-name', maxLength: 30, required: true }),
+    field('login', 'Identifiant de connexion', { autocomplete: 'username', autocapitalize: 'none', maxLength: 30, required: true }, 'Lettres minuscules, chiffres, points ou tirets.'),
+    field('password', 'Mot de passe', { type: 'password', autocomplete: 'new-password', minLength: 10, required: true }, '10 caractères minimum.'),
+    field('confirm', 'Confirme le mot de passe', { type: 'password', autocomplete: 'new-password', required: true }),
+    err, h('button', { class: 'btn pri full', type: 'submit' }, 'Créer mon compte'));
+  $('#app').replaceChildren(form);
+}
+const suggestLogin = n => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9.-]+/g, '').slice(0, 30);
+
+/* ----- en attente du ou de la partenaire ----- */
+function showWaitPartner() {
+  $('#tabs').hidden = true;
+  const box = h('div', { class: 'col' }), err = h('p', { class: 'small bad', role: 'alert' });
+  const make = async () => {
+    err.textContent = '';
+    try {
+      const r = await api('POST', '/api/partner-invite', {}), link = `${location.origin}/?invitation=${r.code}`;
+      box.replaceChildren(...[
+        h('input', { class: 'inp', id: 'w_link', readOnly: true, value: link, 'aria-label': 'Lien d\'invitation', onfocus: e => e.target.select() }),
+        h('button', { class: 'btn pri full', onclick: async () => { try { await navigator.clipboard.writeText(link); toast('Lien copié'); } catch (e) { $('#w_link').select(); toast('Sélectionne le lien et copie-le'); } } }, 'Copier le lien'),
+        navigator.share ? h('button', { class: 'btn full', onclick: () => navigator.share({ title: 'Nous', text: 'Rejoins-moi sur Nous, notre espace à deux 💗', url: link }).catch(() => { }) }, 'Envoyer…') : null,
+        h('p', { class: 'small faint' }, `Valable ${r.days} jours, pour une seule personne.`)].filter(Boolean));
+    } catch (e) { err.textContent = e.message; }
+  };
+  $('#app').replaceChildren(h('section', { class: 'glass card login' },
+    h('div', { class: 'logo' }, 'Nous'),
+    h('p', { class: 'mid' }, `Ton espace est prêt, ${S.me.name} ✨`),
+    h('p', { class: 'muted' }, 'Il ne manque plus que ta moitié. Envoie-lui ce lien : dès qu\'elle a créé son compte, l\'app s\'ouvre ici toute seule.'),
+    box, err,
+    h('button', { class: 'btn full danger', onclick: async () => { clearInterval(showWaitPartner.t); try { await B.logout(); } catch (e) { } S.me = null; showLogin(); } }, 'Se déconnecter')));
+  make();
+  clearInterval(showWaitPartner.t);
+  showWaitPartner.t = setInterval(async () => { try { if (await B.sync() && S.users.length >= 2) { clearInterval(showWaitPartner.t); toast(`${other().name} vous a rejoints 🎉`); route(); } } catch (e) { } }, 4000);
+}
+function route() { if (!S.demo && S.users.length < 2) showWaitPartner(); else enter(); }
 function ensureDefaults() {
   if (couple().seeded) return;
   B.put('profiles', S.cols.profiles._couple = { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 0, by: S.me.id, at: Date.now() }).catch(() => { });
@@ -813,7 +877,9 @@ function enter() {
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; });
 async function start() {
   S.demo = !!window.NOUS_DEMO; B = S.demo ? Demo : Remote;
-  if (await B.boot()) enter(); else showLogin();
+  let code = null; try { code = new URLSearchParams(location.search).get('invitation'); } catch (e) { }
+  if (code && !S.demo) { if (await B.boot()) { try { history.replaceState(null, '', '/'); } catch (e) { } route(); } else showRegister(code); return; }
+  if (await B.boot()) route(); else showLogin();
 }
 
 </script>
@@ -1446,9 +1512,11 @@ VIEWS.reglages = () => {
       h('div', { class: 'row between' }, h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Sur cet appareil'), h('div', { class: 'small muted' }, S.pushOn ? 'Les petits mots arrivent ici.' : 'À activer sur chaque téléphone.')), S.pushOn ? h('button', { class: 'btn sm', onclick: async () => { try { const r = await api('POST', '/api/push/test', {}); toast(r.devices ? 'Notification de test envoyée' : 'Aucun appareil abonné'); } catch (e) { toast(e.message); } } }, 'Tester') : h('button', { class: 'btn sm pri', onclick: enablePush }, 'Activer')),
       h('div', { class: 'row between' }, h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Activité de l\'autre'), h('div', { class: 'small muted' }, 'Agenda, dépenses, appart, photos, question du jour. Les petits mots arrivent toujours.')), sw(pr.notifActivity !== false, () => setP({ notifActivity: pr.notifActivity === false }), 'Activité de l\'autre'))),
     sec(eyebrow('À deux'),
+      h('div', { class: 'f' }, h('label', { htmlFor: 's_cities' }, 'Villes proposées dans l\'agenda'), h('input', { class: 'inp', id: 's_cities', placeholder: 'Paris, Lyon', value: PLACES.map(p => p[0]).join(', '), onchange: e => { const l = [...new Set(e.target.value.split(',').map(x => x.trim()).filter(Boolean))].slice(0, 6); if (!l.length) return; setCities(l); setC({ cities: l }); } }), h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, 'Séparées par des virgules, six au plus.')),
       h('div', { class: 'f' }, h('label', { htmlFor: 's_bud' }, 'Budget logement maximum, charges comprises (€)'), h('input', { class: 'inp', id: 's_bud', type: 'number', inputMode: 'numeric', value: cp.budget == null ? '' : cp.budget, onchange: e => setC({ budget: +e.target.value || 0 }) })),
       h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Répartition par défaut des dépenses'), h('div', { class: 'seg' }, [['half', 'Moitié-moitié'], ['pct', 'Au prorata']].map(([k, l]) => h('button', { class: (cp.defaultSplit || 'half') === k ? 'on' : '', onclick: () => setC({ defaultSplit: k }) }, l)))),
       cp.defaultSplit === 'pct' && h('div', { class: 'f' }, h('label', { htmlFor: 's_pct' }, `Part de ${S.users[0].name} (%)`), h('input', { class: 'inp', id: 's_pct', type: 'number', min: 0, max: 100, value: cp.pct == null ? 50 : cp.pct, onchange: e => setC({ pct: Math.max(0, Math.min(100, +e.target.value || 0)) }) }))),
+    S.me.admin && !S.demo ? h('button', { class: 'glass card tap', onclick: () => go('admin') }, h('div', { class: 'row' }, h('span', { class: 'emo' }, '🛡️'), h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Administration'), h('div', { class: 'small muted' }, 'Inviter des couples, gérer les comptes')), icon('next'))) : null,
     sec(eyebrow('Application'),
       S.installEvt ? h('button', { class: 'btn pri full', onclick: async () => { S.installEvt.prompt(); S.installEvt = null; render(true); } }, 'Installer sur l\'écran d\'accueil')
         : h('p', { class: 'small muted' }, 'Pour l\'avoir comme une vraie app : sur Android, menu ⋮ de Chrome puis « Installer l\'application ». Sur iPhone, bouton Partager de Safari puis « Sur l\'écran d\'accueil ».'),
@@ -2045,6 +2113,52 @@ VIEWS.plus = () => {
   ];
   return [head('Plus', { extra: h('button', { class: 'ibtn', 'aria-label': 'Réglages', onclick: () => go('reglages') }, '⚙️') }),
   groups.map(([name, tiles]) => [h('div', { class: 'eyebrow', style: { padding: '6px 4px 0' } }, name), h('div', { class: 'tiles' }, tiles.map(([id, e, lab, n]) => h('button', { class: 'glass tile', onclick: () => go(id) }, h('span', { class: 'e' }, e), lab, n ? h('span', { class: 'badge' }, n) : null)))])];
+};
+
+</script>
+<script>
+'use strict';
+/* Nous — administration : inviter des couples, réinitialiser un mot de passe, supprimer un espace. Aucun accès au contenu. */
+async function loadAdmin() {
+  if (loadAdmin.busy) return; loadAdmin.busy = true;
+  try { S.admin = await api('GET', '/api/admin'); } catch (e) { S.admin = { error: e.message }; }
+  loadAdmin.busy = false; if (S.view === 'admin') render(true);
+}
+const inviteLink = code => `${location.origin}/?invitation=${code}`;
+function showLinkSheet(title, link, text) {
+  openSheet(title, () => [
+    h('p', { class: 'small muted' }, text),
+    h('input', { class: 'inp', id: 'adm_link', readOnly: true, value: link, 'aria-label': 'Lien', onfocus: e => e.target.select() }),
+    h('button', { class: 'btn pri full', onclick: async () => { try { await navigator.clipboard.writeText(link); toast('Copié'); } catch (e) { $('#adm_link').select(); toast('Sélectionne et copie'); } } }, 'Copier'),
+    navigator.share ? h('button', { class: 'btn full', onclick: () => navigator.share({ title: 'Nous', text: 'Votre invitation pour Nous, l\'app à deux 💗', url: link }).catch(() => { }) }, 'Envoyer…') : null
+  ]);
+}
+VIEWS.admin = () => {
+  if (!S.me.admin) return [head('Administration', { back: 'reglages' }), sec(h('div', { class: 'empty' }, 'Réservé à l\'administration.'))];
+  const A = S.admin; if (!A) { loadAdmin(); return [head('Administration', { back: 'reglages' }), sec(h('div', { class: 'empty' }, 'Chargement…'))]; }
+  if (A.error) return [head('Administration', { back: 'reglages' }), sec(h('p', { class: 'bad' }, A.error), h('button', { class: 'btn full', onclick: () => { S.admin = null; render(true); } }, 'Réessayer'))];
+  const invite = () => formSheet({
+    title: 'Inviter un couple', submit: 'Créer le lien', fields: [{ k: 'note', label: 'Pour qui (pour t\'en souvenir)', ph: 'Léa et Tom', required: true }],
+    onSubmit: async v => { const r = await api('POST', '/api/admin/invite', { note: v.note }); S.admin = null; loadAdmin(); setTimeout(() => showLinkSheet('Invitation prête', inviteLink(r.code), `Envoie ce lien à l'une des deux personnes. Valable ${r.days} jours, une seule fois. Tu ne pourras plus l'afficher ensuite.`), 380); }
+  });
+  const act = async (fn, ok) => { try { const r = await fn(); S.admin = null; loadAdmin(); if (ok) ok(r); } catch (e) { toast(e.message); } };
+  const total = A.couples.reduce((s, c) => s + c.bytes, 0);
+  return [
+    head('Administration', { back: 'reglages', add: invite, addLabel: 'Inviter un couple' }),
+    sec(h('div', { class: 'row', style: { justifyContent: 'space-around' } },
+      h('div', { class: 'center' }, h('div', { class: 'big num' }, A.couples.length), h('div', { class: 'tiny muted' }, 'espaces')),
+      h('div', { class: 'center' }, h('div', { class: 'big num' }, A.couples.reduce((s, c) => s + c.users.length, 0)), h('div', { class: 'tiny muted' }, 'comptes')),
+      h('div', { class: 'center' }, h('div', { class: 'big num' }, size(total)), h('div', { class: 'tiny muted' }, 'de fichiers')))),
+    h('button', { class: 'btn pri full', onclick: invite }, 'Inviter un couple'),
+    A.invites.length ? sec(eyebrow('Invitations en attente'), h('div', { class: 'list' }, A.invites.map(i => h('div', { class: 'item' }, h('span', { class: 'emo' }, '✉️'), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, i.note || 'Sans nom'), h('div', { class: 'small muted' }, `Expire ${rel(iso(new Date(i.expires)))}`)),
+      h('button', { class: 'btn sm danger', onclick: async () => { if (await confirmSheet('Annuler cette invitation ?', 'Le lien ne fonctionnera plus.', 'Annuler l\'invitation', true)) act(() => api('DELETE', '/api/admin/invite/' + i.id)); } }, 'Annuler'))))) : null,
+    sec(eyebrow('Espaces'), h('div', { class: 'list' }, A.couples.map(c => h('div', { class: 'item', style: { alignItems: 'flex-start', flexDirection: 'column', gap: '8px' } },
+      h('div', { class: 'row', style: { width: '100%' } }, h('span', { class: 'emo' }, c.mine ? '🏠' : '💑'), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, c.users.map(u => u.name).join(' & ') || 'Espace vide', c.mine ? ' (vous)' : ''), h('div', { class: 'small muted' }, `Créé le ${fmtD(iso(new Date(c.created)), { day: 'numeric', month: 'short', year: 'numeric' })} · actif ${rel(iso(new Date(c.lastSeen)))} · ${c.items} éléments · ${size(c.bytes)}`), c.users.length < 2 ? h('div', { class: 'small warnc' }, 'En attente du ou de la partenaire') : null)),
+      h('div', { class: 'chips' },
+        c.users.map(u => h('button', { class: 'chip', onclick: async () => { if (await confirmSheet(`Nouveau mot de passe pour ${u.name} ?`, `L'ancien ne marchera plus et ${u.name} sera déconnecté de ses appareils.`, 'Réinitialiser', true)) act(() => api('POST', '/api/admin/reset', { user: u.id }), r => showLinkSheet(`Mot de passe de ${u.name}`, r.password, `Identifiant : ${u.id}. Transmets ce mot de passe provisoire, à changer dans Réglages dès la connexion.`)); } }, '🔑 ' + u.name)),
+        !c.mine ? h('button', { class: 'chip', style: { color: 'var(--bad)' }, onclick: async () => { if (await confirmSheet('Supprimer cet espace ?', `Tout ce que ${c.users.map(u => u.name).join(' et ') || 'cet espace'} y a mis (agenda, comptes, photos, documents) sera effacé définitivement, ainsi que leurs comptes.`, 'Tout supprimer', true)) act(() => api('POST', '/api/admin/delete-couple', { couple: c.id }), () => toast('Espace supprimé')); } }, '🗑️ Supprimer') : null))))),
+    h('p', { class: 'small faint center' }, 'L\'administration ne donne accès à aucun contenu des espaces : seulement les prénoms, la date de création et la place occupée.')
+  ];
 };
 
 </script>
