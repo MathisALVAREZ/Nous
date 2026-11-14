@@ -162,6 +162,8 @@ svg { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; s
 .inp { width: 100%; min-height: 46px; padding: 10px 14px; border-radius: 15px; background: var(--field); border: 1px solid var(--edge); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .05); outline: 0; -webkit-appearance: none; appearance: none; }
 .inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 textarea.inp { min-height: 84px; resize: vertical; }
+.inp, .bub, p, .b, .mid { -webkit-user-select: text; user-select: text; }
+.inp { -webkit-touch-callout: default; }
 select.inp { background-image: linear-gradient(45deg, transparent 50%, var(--ink2) 50%), linear-gradient(135deg, var(--ink2) 50%, transparent 50%); background-position: calc(100% - 20px) 21px, calc(100% - 15px) 21px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
 select.inp option { background: Canvas; color: CanvasText; }
 .ptag { display: flex; align-items: center; gap: 6px; }

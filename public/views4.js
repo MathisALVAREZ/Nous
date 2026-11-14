@@ -2,7 +2,7 @@
 /* Nous — quotidien (menu, tâches, cagnotte, trajets, infos), appart (checklist, messages), jeux (tribunal, défi, quiz, capsules, trophées, bilan, playlist), « je pense à toi ». */
 const monday = d => addDays(d, -((pd(d).getDay() + 6) % 7));
 const sum = a => a.reduce((x, y) => x + (+y || 0), 0);
-async function copyText(t) { try { await navigator.clipboard.writeText(t); toast('Copié'); } catch (e) { toast('Copie impossible ici : sélectionne le texte à la main'); } }
+const copyText = (t, field) => copyTo(t, field);
 const backSub = (key) => () => { S[key] = null; render(true); };
 
 /* ================= JE PENSE À TOI ================= */
@@ -163,7 +163,7 @@ function tplSheet(f, kind) {
   let txt = (couple()[key] || TPL[kind]).replace(/\{annonce\}/g, f.title).replace(/\{noms\}/g, names);
   openSheet(kind === 'apply' ? 'Message de candidature' : 'Message de relance', c => [
     h('textarea', { class: 'inp', id: 'tpl_t', style: { minHeight: '300px' }, 'aria-label': 'Texte du message', value: txt, oninput: e => txt = e.target.value }),
-    h('button', { class: 'btn pri full', onclick: () => copyText(txt) }, 'Copier le message'),
+    h('button', { class: 'btn pri full', onclick: () => copyText(txt, $('#tpl_t')) }, 'Copier le message'),
     h('button', { class: 'btn full', onclick: () => { put('profiles', { ...couple(), id: '_couple', [key]: txt.split(f.title).join('{annonce}').split(names).join('{noms}') }); toast('Enregistré comme modèle pour les prochains apparts'); } }, 'Garder ce texte comme modèle'),
     couple()[key] ? h('button', { class: 'btn full danger', onclick: () => { const cp = { ...couple(), id: '_couple' }; delete cp[key]; put('profiles', cp); c.close(); toast('Modèle d\'origine rétabli'); } }, 'Revenir au texte d\'origine') : null
   ]);

@@ -9,8 +9,8 @@ const inviteLink = code => `${location.origin}/?invitation=${code}`;
 function showLinkSheet(title, link, text) {
   openSheet(title, () => [
     h('p', { class: 'small muted' }, text),
-    h('input', { class: 'inp', id: 'adm_link', readOnly: true, value: link, 'aria-label': 'Lien', onfocus: e => e.target.select() }),
-    h('button', { class: 'btn pri full', onclick: async () => { try { await navigator.clipboard.writeText(link); toast('Copié'); } catch (e) { $('#adm_link').select(); toast('Sélectionne et copie'); } } }, 'Copier'),
+    h('input', { class: 'inp', id: 'adm_link', value: link, 'aria-label': 'Lien', onfocus: e => e.target.select(), oninput: e => { e.target.value = link; } }),
+    h('button', { class: 'btn pri full', onclick: () => copyTo(link, $('#adm_link')) }, 'Copier'),
     navigator.share ? h('button', { class: 'btn full', onclick: () => navigator.share({ title: 'Nous', text: 'Votre invitation pour Nous, l\'app à deux 💗', url: link }).catch(() => { }) }, 'Envoyer…') : null
   ]);
 }

@@ -223,6 +223,21 @@ function head(title, o = {}) {
     o.extra,
     o.add && h('button', { class: 'ibtn pri', 'aria-label': o.addLabel || 'Ajouter', onclick: o.add }, icon('plus')));
 }
+// Copie fiable sur tous les téléphones : méthode classique d'abord (acceptée par Safari et les apps installées),
+// puis l'API récente ; en dernier recours, on sélectionne le texte pour un appui long.
+function copyTo(text, field) {
+  let ok = false;
+  const ta = D.createElement('textarea');
+  ta.value = text; ta.setAttribute('aria-hidden', 'true');
+  Object.assign(ta.style, { position: 'fixed', top: '0', left: '0', width: '1px', height: '1px', opacity: '0', fontSize: '16px' });
+  D.body.append(ta); ta.focus(); ta.select(); try { ta.setSelectionRange(0, text.length); } catch (e) { }
+  try { ok = D.execCommand('copy'); } catch (e) { }
+  ta.remove();
+  if (ok) { toast('Copié ✓'); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => toast('Copié ✓'), () => fallback());
+  else fallback();
+  function fallback() { if (field) { field.focus(); field.select(); try { field.setSelectionRange(0, text.length); } catch (e) { } } toast('Appuie longuement sur le texte sélectionné, puis « Copier »'); }
+}
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('in');
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('in'), 3000);
@@ -400,8 +415,8 @@ function showWaitPartner() {
     try {
       const r = await api('POST', '/api/partner-invite', {}), link = `${location.origin}/?invitation=${r.code}`;
       box.replaceChildren(...[
-        h('input', { class: 'inp', id: 'w_link', readOnly: true, value: link, 'aria-label': 'Lien d\'invitation', onfocus: e => e.target.select() }),
-        h('button', { class: 'btn pri full', onclick: async () => { try { await navigator.clipboard.writeText(link); toast('Lien copié'); } catch (e) { $('#w_link').select(); toast('Sélectionne le lien et copie-le'); } } }, 'Copier le lien'),
+        h('input', { class: 'inp', id: 'w_link', value: link, 'aria-label': 'Lien d\'invitation', onfocus: e => e.target.select(), oninput: e => { e.target.value = link; } }),
+        h('button', { class: 'btn pri full', onclick: () => copyTo(link, $('#w_link')) }, 'Copier le lien'),
         navigator.share ? h('button', { class: 'btn full', onclick: () => navigator.share({ title: 'Nous', text: 'Rejoins-moi sur Nous, notre espace à deux 💗', url: link }).catch(() => { }) }, 'Envoyer…') : null,
         h('p', { class: 'small faint' }, `Valable ${r.days} jours, pour une seule personne.`)].filter(Boolean));
     } catch (e) { err.textContent = e.message; }
