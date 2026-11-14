@@ -43,7 +43,7 @@
     { t: 'choice', q: "Tu préfères…", a: "Recevoir des amis à la maison", b: "Sortir retrouver des amis" },
     { t: 'open', q: "Quelle est la chose la plus drôle que j'aie dite ou faite récemment ?" },
     { t: 'who', q: "Qui de nous deux pleure le plus devant un film ?" },
-    { t: 'open', q: "Quel est ton endroit préféré à Paris avec moi ?" },
+    { t: 'open', q: "Quel est ton endroit préféré dans notre ville ?" },
     { t: 'choice', q: "Tu préfères…", a: "Sucré", b: "Salé" },
     { t: 'open', q: "Quelle compétence aimerais-tu qu'on apprenne ensemble ?" },
     { t: 'who', q: "Qui de nous deux prend toute la couette ?" },

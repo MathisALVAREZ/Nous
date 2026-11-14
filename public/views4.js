@@ -119,7 +119,7 @@ VIEWS.cagnotte = () => {
 /* ================= TRAJETS ================= */
 function tripForm(tr) {
   formSheet({
-    title: tr.id ? 'Modifier le trajet' : 'Nouveau trajet', values: { who: S.me.id, from: 'Paris', to: 'Bordeaux', date: today(), ...tr },
+    title: tr.id ? 'Modifier le trajet' : 'Nouveau trajet', values: { who: S.me.id, from: PLACES[0][0], to: (PLACES[1] || PLACES[0])[0], date: today(), ...tr },
     fields: [{ k: 'who', label: 'Qui voyage', type: 'seg', options: [...S.users.map(u => [u.id, u.id === S.me.id ? 'Moi' : u.name]), ['both', 'Nous deux']] },
     { k: 'from', label: 'Départ', half: true, required: true }, { k: 'to', label: 'Arrivée', half: true, required: true }, { k: 'date', label: 'Date', type: 'date', required: true },
     { k: 'dep', label: 'Heure de départ', type: 'time', half: true }, { k: 'arr', label: 'Heure d\'arrivée', type: 'time', half: true },
@@ -214,7 +214,7 @@ VIEWS.defi = () => {
 };
 
 /* ================= QUI ME CONNAÎT LE MIEUX ================= */
-const QUIZQ = ['Mon plat préféré ?', 'Le film que je peux revoir dix fois ?', 'Ma plus grande peur ?', 'Ce que je commande toujours au resto ?', 'Mon pire défaut, selon moi ?', 'La destination de mes rêves ?', 'Ce qui m\'énerve le plus au quotidien ?', 'Ma chanson du moment ?', 'Mon dessert préféré ?', 'Le métier que je voulais faire enfant ?', 'Ce que je fais en premier le matin ?', 'Mon odeur préférée ?', 'La chose dont je suis le plus fier ?', 'Mon pire souvenir de vacances ?', 'Ce que j\'emporterais sur une île déserte ?', 'Ma boisson préférée ?', 'Le super-pouvoir que je choisirais ?', 'Mon plus gros craquage récent ?', 'La série que j\'ai le plus aimée ?', 'Ce qui me fait rire à tous les coups ?', 'Mon moment préféré de la journée ?', 'L\'animal que j\'aimerais avoir ?', 'Le cadeau qui m\'a le plus marqué ?', 'Ce que je préfère chez toi ?', 'Ma saison préférée ?', 'Le plat que je déteste ?', 'Mon endroit préféré à Paris ?', 'Ce que je ferais avec un jour de congé surprise ?', 'Mon tic de langage ?', 'La matière que je préférais à l\'école ?'];
+const QUIZQ = ['Mon plat préféré ?', 'Le film que je peux revoir dix fois ?', 'Ma plus grande peur ?', 'Ce que je commande toujours au resto ?', 'Mon pire défaut, selon moi ?', 'La destination de mes rêves ?', 'Ce qui m\'énerve le plus au quotidien ?', 'Ma chanson du moment ?', 'Mon dessert préféré ?', 'Le métier que je voulais faire enfant ?', 'Ce que je fais en premier le matin ?', 'Mon odeur préférée ?', 'La chose dont je suis le plus fier ?', 'Mon pire souvenir de vacances ?', 'Ce que j\'emporterais sur une île déserte ?', 'Ma boisson préférée ?', 'Le super-pouvoir que je choisirais ?', 'Mon plus gros craquage récent ?', 'La série que j\'ai le plus aimée ?', 'Ce qui me fait rire à tous les coups ?', 'Mon moment préféré de la journée ?', 'L\'animal que j\'aimerais avoir ?', 'Le cadeau qui m\'a le plus marqué ?', 'Ce que je préfère chez toi ?', 'Ma saison préférée ?', 'Le plat que je déteste ?', 'Mon endroit préféré dans notre ville ?', 'Ce que je ferais avec un jour de congé surprise ?', 'Mon tic de langage ?', 'La matière que je préférais à l\'école ?'];
 VIEWS.quiz = () => {
   const me = S.me.id, o = other(), rs = all('quiz').sort((a, b) => b.at - a.at), ym = today().slice(0, 7);
   const ask = () => {

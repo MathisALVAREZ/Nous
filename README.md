@@ -22,6 +22,18 @@ tribunal, défi de la semaine, quiz, capsules, trophées, bilan du mois, playlis
 Le script reprend le réseau, le point d'entrée et le résolveur de certificats d'un service déjà en place,
 puis branche Nous dessus. La configuration Nginx de `deploy/` ne sert alors pas.
 
+## Une copie pour un autre couple
+
+Chaque couple a sa propre copie : son adresse, ses deux comptes, sa base de données. Depuis ta copie principale :
+
+    bash deploy/nouveau-couple.sh lea-tom lea:Léa tom:Tom lea-tom.kratox.fr "Lyon,Paris"
+
+Arguments : un nom court, les deux comptes `identifiant:Prénom`, l'adresse (par défaut `<nom>.kratox.fr`) et les
+villes proposées dans l'agenda (six au plus). Le DNS de l'adresse doit pointer vers le VPS avant. Le script crée
+le dossier `../nous-lea-tom`, branche la copie sur Traefik et affiche les identifiants à transmettre.
+
+Mettre à jour toutes les copies d'un coup : `bash deploy/maj-tous.sh`.
+
 Sauvegarde : ajouter `deploy/backup.sh` au cron (voir l'en-tête du script).
 Mise à jour : remplacer les fichiers puis `docker compose up -d --build`.
 

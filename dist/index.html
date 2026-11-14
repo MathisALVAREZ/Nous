@@ -348,7 +348,7 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
     { t: 'choice', q: "Tu préfères…", a: "Recevoir des amis à la maison", b: "Sortir retrouver des amis" },
     { t: 'open', q: "Quelle est la chose la plus drôle que j'aie dite ou faite récemment ?" },
     { t: 'who', q: "Qui de nous deux pleure le plus devant un film ?" },
-    { t: 'open', q: "Quel est ton endroit préféré à Paris avec moi ?" },
+    { t: 'open', q: "Quel est ton endroit préféré dans notre ville ?" },
     { t: 'choice', q: "Tu préfères…", a: "Sucré", b: "Salé" },
     { t: 'open', q: "Quelle compétence aimerais-tu qu'on apprenne ensemble ?" },
     { t: 'who', q: "Qui de nous deux prend toute la couette ?" },
@@ -518,7 +518,7 @@ function checkVersion(v) {
   const go2 = () => location.reload();
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
 }
-function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; }
+function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; if (j.cities && typeof setCities === 'function') setCities(j.cities); }
 const Remote = {
   async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
   async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if (j.same) return false; applySync(j); return true; },
@@ -790,7 +790,7 @@ function showLogin() {
 }
 function ensureDefaults() {
   if (couple().seeded) return;
-  B.put('profiles', S.cols.profiles._couple = { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 1200, by: S.me.id, at: Date.now() }).catch(() => { });
+  B.put('profiles', S.cols.profiles._couple = { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 0, by: S.me.id, at: Date.now() }).catch(() => { });
   const def = {
     folders: [['d_loc', { name: 'Dossier locataire', emoji: '🔑' }], ['d_admin', { name: 'Administratif', emoji: '🗂️' }], ['d_voy', { name: 'Voyages', emoji: '✈️' }]],
     lists: [['l_courses', { name: 'Courses', emoji: '🛒' }], ['l_restos', { name: 'Restos à tester', emoji: '🍜' }], ['l_films', { name: 'Films et séries', emoji: '🎬' }], ['l_sorties', { name: 'Idées de sorties', emoji: '🎡' }]],
@@ -820,9 +820,13 @@ async function start() {
 <script>
 'use strict';
 /* Nous — vues principales : accueil, agenda, comptes, appart. */
-const PLACES = [['Paris', '#7c7aff'], ['Bordeaux', '#ff4d88'], ['Gif-sur-Yvette', '#30c172'], ['Ailleurs', '#ffa726']];
+// Les villes proposées viennent du serveur (NOUS_CITIES), pour que chaque couple ait les siennes.
+const PAL = ['#7c7aff', '#ff4d88', '#30c172', '#32ade6', '#af52de', '#ffc53d'];
+let PLACES = [];
+function setCities(list) { PLACES = (list && list.length ? list : ['Paris', 'Bordeaux', 'Gif-sur-Yvette']).map((c, i) => [c, PAL[i % PAL.length]]); }
+setCities();
 const placeTag = (p, empty) => h('div', { class: 'small b ell ptag' }, p ? h('i', { class: 'dot', c: pcolor(p) }) : null, p || empty);
-const pcolor = p => (PLACES.find(x => x[0] === p) || [0, '#ff9f0a'])[1];
+const pcolor = p => (PLACES.find(x => x[0] === p) || [0, '#ffa726'])[1];
 const placeOf = (u, d) => { const e = (S.cols.places || {})[d + '_' + u]; return (e && e.place) || profile(u).home || null; };
 const KINDS = [['event', 'Événement', '📌'], ['soiree', 'Soirée', '🥂'], ['service', 'Service', '🍽️'], ['cours', 'Cours', '🎓'], ['travail', 'Travail', '💼'], ['trajet', 'Trajet', '🚄']];
 const kindOf = k => KINDS.find(x => x[0] === k) || KINDS[0];
@@ -933,10 +937,10 @@ function placeSheet(who, date) {
   const known = cur && PLACES.some(p => p[0] === cur.place);
   formSheet({
     title: 'Où es-tu ?', submit: 'Enregistrer',
-    values: { who, place: cur ? (known ? cur.place : '__other') : (profile(who).home || 'Paris'), custom: cur && !known ? cur.place : '', from: date, to: date },
+    values: { who, place: cur ? (known ? cur.place : '__other') : (profile(who).home || PLACES[0][0]), custom: cur && !known ? cur.place : '', from: date, to: date },
     fields: [
       { k: 'who', label: 'Pour', type: 'seg', options: S.users.map(u => [u.id, u.id === S.me.id ? 'Moi' : u.name]) },
-      { k: 'place', label: 'Ville', type: 'select', options: [...PLACES.slice(0, 3).map(p => [p[0], p[0]]), ['__other', 'Autre ville…'], ['__clear', 'Revenir à la ville habituelle']] },
+      { k: 'place', label: 'Ville', type: 'select', options: [...PLACES.map(p => [p[0], p[0]]), ['__other', 'Autre ville…'], ['__clear', 'Revenir à la ville habituelle']] },
       { k: 'custom', label: 'Nom de la ville', ph: 'Lyon, Biarritz…', showIf: v => v.place === '__other', required: true },
       { k: 'from', label: 'Du', type: 'date', half: true, required: true },
       { k: 'to', label: 'Au', type: 'date', half: true, required: true },
@@ -1437,7 +1441,7 @@ VIEWS.reglages = () => {
   return [
     head('Réglages', { back: 'plus' }),
     sec(h('div', { class: 'row' }, avatar(me.id), h('div', { class: 'grow' }, h('div', { class: 'mid' }, me.name), h('div', { class: 'small muted' }, 'Connecté sur cet appareil'))),
-      h('div', { class: 'f' }, h('label', { htmlFor: 's_home' }, 'Ma ville habituelle'), h('select', { class: 'inp', id: 's_home', onchange: e => setP({ home: e.target.value }) }, [['', 'Non précisée'], ...PLACES.slice(0, 3).map(p => [p[0], p[0]])].map(([v, l]) => h('option', { value: v, selected: (pr.home || '') === v }, l))), h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, 'Utilisée les jours où tu n\'as rien indiqué dans l\'agenda.'))),
+      h('div', { class: 'f' }, h('label', { htmlFor: 's_home' }, 'Ma ville habituelle'), h('select', { class: 'inp', id: 's_home', onchange: e => setP({ home: e.target.value }) }, [['', 'Non précisée'], ...PLACES.map(p => [p[0], p[0]])].map(([v, l]) => h('option', { value: v, selected: (pr.home || '') === v }, l))), h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, 'Utilisée les jours où tu n\'as rien indiqué dans l\'agenda.'))),
     sec(eyebrow('Notifications'),
       h('div', { class: 'row between' }, h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Sur cet appareil'), h('div', { class: 'small muted' }, S.pushOn ? 'Les petits mots arrivent ici.' : 'À activer sur chaque téléphone.')), S.pushOn ? h('button', { class: 'btn sm', onclick: async () => { try { const r = await api('POST', '/api/push/test', {}); toast(r.devices ? 'Notification de test envoyée' : 'Aucun appareil abonné'); } catch (e) { toast(e.message); } } }, 'Tester') : h('button', { class: 'btn sm pri', onclick: enablePush }, 'Activer')),
       h('div', { class: 'row between' }, h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Activité de l\'autre'), h('div', { class: 'small muted' }, 'Agenda, dépenses, appart, photos, question du jour. Les petits mots arrivent toujours.')), sw(pr.notifActivity !== false, () => setP({ notifActivity: pr.notifActivity === false }), 'Activité de l\'autre'))),
@@ -1829,7 +1833,7 @@ VIEWS.cagnotte = () => {
 /* ================= TRAJETS ================= */
 function tripForm(tr) {
   formSheet({
-    title: tr.id ? 'Modifier le trajet' : 'Nouveau trajet', values: { who: S.me.id, from: 'Paris', to: 'Bordeaux', date: today(), ...tr },
+    title: tr.id ? 'Modifier le trajet' : 'Nouveau trajet', values: { who: S.me.id, from: PLACES[0][0], to: (PLACES[1] || PLACES[0])[0], date: today(), ...tr },
     fields: [{ k: 'who', label: 'Qui voyage', type: 'seg', options: [...S.users.map(u => [u.id, u.id === S.me.id ? 'Moi' : u.name]), ['both', 'Nous deux']] },
     { k: 'from', label: 'Départ', half: true, required: true }, { k: 'to', label: 'Arrivée', half: true, required: true }, { k: 'date', label: 'Date', type: 'date', required: true },
     { k: 'dep', label: 'Heure de départ', type: 'time', half: true }, { k: 'arr', label: 'Heure d\'arrivée', type: 'time', half: true },
@@ -1924,7 +1928,7 @@ VIEWS.defi = () => {
 };
 
 /* ================= QUI ME CONNAÎT LE MIEUX ================= */
-const QUIZQ = ['Mon plat préféré ?', 'Le film que je peux revoir dix fois ?', 'Ma plus grande peur ?', 'Ce que je commande toujours au resto ?', 'Mon pire défaut, selon moi ?', 'La destination de mes rêves ?', 'Ce qui m\'énerve le plus au quotidien ?', 'Ma chanson du moment ?', 'Mon dessert préféré ?', 'Le métier que je voulais faire enfant ?', 'Ce que je fais en premier le matin ?', 'Mon odeur préférée ?', 'La chose dont je suis le plus fier ?', 'Mon pire souvenir de vacances ?', 'Ce que j\'emporterais sur une île déserte ?', 'Ma boisson préférée ?', 'Le super-pouvoir que je choisirais ?', 'Mon plus gros craquage récent ?', 'La série que j\'ai le plus aimée ?', 'Ce qui me fait rire à tous les coups ?', 'Mon moment préféré de la journée ?', 'L\'animal que j\'aimerais avoir ?', 'Le cadeau qui m\'a le plus marqué ?', 'Ce que je préfère chez toi ?', 'Ma saison préférée ?', 'Le plat que je déteste ?', 'Mon endroit préféré à Paris ?', 'Ce que je ferais avec un jour de congé surprise ?', 'Mon tic de langage ?', 'La matière que je préférais à l\'école ?'];
+const QUIZQ = ['Mon plat préféré ?', 'Le film que je peux revoir dix fois ?', 'Ma plus grande peur ?', 'Ce que je commande toujours au resto ?', 'Mon pire défaut, selon moi ?', 'La destination de mes rêves ?', 'Ce qui m\'énerve le plus au quotidien ?', 'Ma chanson du moment ?', 'Mon dessert préféré ?', 'Le métier que je voulais faire enfant ?', 'Ce que je fais en premier le matin ?', 'Mon odeur préférée ?', 'La chose dont je suis le plus fier ?', 'Mon pire souvenir de vacances ?', 'Ce que j\'emporterais sur une île déserte ?', 'Ma boisson préférée ?', 'Le super-pouvoir que je choisirais ?', 'Mon plus gros craquage récent ?', 'La série que j\'ai le plus aimée ?', 'Ce qui me fait rire à tous les coups ?', 'Mon moment préféré de la journée ?', 'L\'animal que j\'aimerais avoir ?', 'Le cadeau qui m\'a le plus marqué ?', 'Ce que je préfère chez toi ?', 'Ma saison préférée ?', 'Le plat que je déteste ?', 'Mon endroit préféré dans notre ville ?', 'Ce que je ferais avec un jour de congé surprise ?', 'Mon tic de langage ?', 'La matière que je préférais à l\'école ?'];
 VIEWS.quiz = () => {
   const me = S.me.id, o = other(), rs = all('quiz').sort((a, b) => b.at - a.at), ym = today().slice(0, 7);
   const ask = () => {

@@ -1,8 +1,12 @@
 'use strict';
 /* Nous — vues principales : accueil, agenda, comptes, appart. */
-const PLACES = [['Paris', '#7c7aff'], ['Bordeaux', '#ff4d88'], ['Gif-sur-Yvette', '#30c172'], ['Ailleurs', '#ffa726']];
+// Les villes proposées viennent du serveur (NOUS_CITIES), pour que chaque couple ait les siennes.
+const PAL = ['#7c7aff', '#ff4d88', '#30c172', '#32ade6', '#af52de', '#ffc53d'];
+let PLACES = [];
+function setCities(list) { PLACES = (list && list.length ? list : ['Paris', 'Bordeaux', 'Gif-sur-Yvette']).map((c, i) => [c, PAL[i % PAL.length]]); }
+setCities();
 const placeTag = (p, empty) => h('div', { class: 'small b ell ptag' }, p ? h('i', { class: 'dot', c: pcolor(p) }) : null, p || empty);
-const pcolor = p => (PLACES.find(x => x[0] === p) || [0, '#ff9f0a'])[1];
+const pcolor = p => (PLACES.find(x => x[0] === p) || [0, '#ffa726'])[1];
 const placeOf = (u, d) => { const e = (S.cols.places || {})[d + '_' + u]; return (e && e.place) || profile(u).home || null; };
 const KINDS = [['event', 'Événement', '📌'], ['soiree', 'Soirée', '🥂'], ['service', 'Service', '🍽️'], ['cours', 'Cours', '🎓'], ['travail', 'Travail', '💼'], ['trajet', 'Trajet', '🚄']];
 const kindOf = k => KINDS.find(x => x[0] === k) || KINDS[0];
@@ -113,10 +117,10 @@ function placeSheet(who, date) {
   const known = cur && PLACES.some(p => p[0] === cur.place);
   formSheet({
     title: 'Où es-tu ?', submit: 'Enregistrer',
-    values: { who, place: cur ? (known ? cur.place : '__other') : (profile(who).home || 'Paris'), custom: cur && !known ? cur.place : '', from: date, to: date },
+    values: { who, place: cur ? (known ? cur.place : '__other') : (profile(who).home || PLACES[0][0]), custom: cur && !known ? cur.place : '', from: date, to: date },
     fields: [
       { k: 'who', label: 'Pour', type: 'seg', options: S.users.map(u => [u.id, u.id === S.me.id ? 'Moi' : u.name]) },
-      { k: 'place', label: 'Ville', type: 'select', options: [...PLACES.slice(0, 3).map(p => [p[0], p[0]]), ['__other', 'Autre ville…'], ['__clear', 'Revenir à la ville habituelle']] },
+      { k: 'place', label: 'Ville', type: 'select', options: [...PLACES.map(p => [p[0], p[0]]), ['__other', 'Autre ville…'], ['__clear', 'Revenir à la ville habituelle']] },
       { k: 'custom', label: 'Nom de la ville', ph: 'Lyon, Biarritz…', showIf: v => v.place === '__other', required: true },
       { k: 'from', label: 'Du', type: 'date', half: true, required: true },
       { k: 'to', label: 'Au', type: 'date', half: true, required: true },

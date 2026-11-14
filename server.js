@@ -17,6 +17,8 @@ const COOKIE_SECURE = process.env.COOKIE_SECURE !== '0';
 const SESSION_DAYS = 90;
 const MAX_FILE = 25 * 1024 * 1024;
 const TZ = 'Europe/Paris';
+// Villes proposées dans l'agenda : propres à chaque couple (fichier .env)
+const CITIES = (process.env.NOUS_CITIES || 'Paris,Bordeaux,Gif-sur-Yvette').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
 fs.mkdirSync(FILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
@@ -183,7 +185,7 @@ app.get('/api/sync', auth, (req, res) => {
   const hiddenT = new Set(parsed.filter(([c, d]) => c === 'trackers' && d.by !== me && (d.vis || 'private') === 'private').map(([, d]) => d.id));
   const sharers = new Set(parsed.filter(([c, d]) => c === 'profiles' && d.shareCycle === true).map(([, d]) => d.id));
   for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers, hiddenT); if (v) cols[c][d.id] = v; }
-  res.json({ rev, me: req.user, users: users(), cols, vapid: vapid.publicKey, today: today(), v: VERSION });
+  res.json({ rev, me: req.user, users: users(), cols, vapid: vapid.publicKey, today: today(), v: VERSION, cities: CITIES });
 });
 
 const lastPing = new Map();

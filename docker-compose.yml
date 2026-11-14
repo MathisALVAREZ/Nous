@@ -1,11 +1,12 @@
+# Une instance par couple : INSTANCE, PORT_LOCAL et DOMAIN viennent du fichier .env du dossier.
 services:
   nous:
     build: .
-    container_name: nous
+    container_name: ${INSTANCE:-nous}
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:3080:3000"   # joignable uniquement par Nginx sur le VPS
+      - "127.0.0.1:${PORT_LOCAL:-3080}:3000"   # joignable uniquement depuis le VPS
     volumes:
       - ./data:/data
     read_only: true

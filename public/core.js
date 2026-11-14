@@ -83,7 +83,7 @@ function checkVersion(v) {
   const go2 = () => location.reload();
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
 }
-function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; }
+function applySync(j) { S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; if (j.cities && typeof setCities === 'function') setCities(j.cities); }
 const Remote = {
   async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
   async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if (j.same) return false; applySync(j); return true; },
@@ -355,7 +355,7 @@ function showLogin() {
 }
 function ensureDefaults() {
   if (couple().seeded) return;
-  B.put('profiles', S.cols.profiles._couple = { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 1200, by: S.me.id, at: Date.now() }).catch(() => { });
+  B.put('profiles', S.cols.profiles._couple = { id: '_couple', seeded: true, defaultSplit: 'half', pct: 50, budget: 0, by: S.me.id, at: Date.now() }).catch(() => { });
   const def = {
     folders: [['d_loc', { name: 'Dossier locataire', emoji: '🔑' }], ['d_admin', { name: 'Administratif', emoji: '🗂️' }], ['d_voy', { name: 'Voyages', emoji: '✈️' }]],
     lists: [['l_courses', { name: 'Courses', emoji: '🛒' }], ['l_restos', { name: 'Restos à tester', emoji: '🍜' }], ['l_films', { name: 'Films et séries', emoji: '🎬' }], ['l_sorties', { name: 'Idées de sorties', emoji: '🎡' }]],

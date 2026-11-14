@@ -3,14 +3,16 @@
 # À lancer depuis le dossier du projet :  bash deploy/traefik.sh
 # Les réglages (réseau, point d'entrée, résolveur de certificats) sont repris d'un service qui marche déjà.
 set -euo pipefail
-DOMAIN="${DOMAIN:-morgane.kratox.fr}"
-REF="${REF:-}"            # conteneur modèle ; détecté automatiquement si vide
 cd "$(dirname "$0")/.."
+envval() { grep -E "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- || true; }
+INSTANCE="${INSTANCE:-$(envval INSTANCE)}"; INSTANCE="${INSTANCE:-nous}"
+DOMAIN="${DOMAIN:-$(envval DOMAIN)}"; DOMAIN="${DOMAIN:-morgane.kratox.fr}"
+REF="${REF:-}"            # conteneur modèle ; détecté automatiquement si vide
 
 labels_of() { docker inspect "$1" --format '{{range $k,$v := .Config.Labels}}{{$k}}={{$v}}{{"\n"}}{{end}}' 2>/dev/null | grep -i '^traefik\.' || true; }
 if [ -z "$REF" ]; then
   for c in $(docker ps --format '{{.Names}}'); do
-    [ "$c" = "nous" ] && continue
+    case "$c" in nous|nous-*) continue;; esac
     if labels_of "$c" | grep -qi 'tls\.certresolver='; then REF="$c"; break; fi
   done
 fi
@@ -30,6 +32,7 @@ if [ -z "$NET" ]; then   # sinon : premier réseau commun entre Traefik et le co
 fi
 
 echo "Modèle : ${REF:-aucun (valeurs par défaut)}"
+echo "Instance : $INSTANCE"
 echo "Réseau : $NET · point d'entrée : $ENTRY · certificats : $RESOLVER · domaine : $DOMAIN"
 
 cat > docker-compose.override.yml <<YML
@@ -40,11 +43,11 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=${NET}
-      - traefik.http.routers.nous.rule=Host(\`${DOMAIN}\`)
-      - traefik.http.routers.nous.entrypoints=${ENTRY}
-      - traefik.http.routers.nous.tls=true
-      - traefik.http.routers.nous.tls.certresolver=${RESOLVER}
-      - traefik.http.services.nous.loadbalancer.server.port=3000
+      - traefik.http.routers.${INSTANCE}.rule=Host(\`${DOMAIN}\`)
+      - traefik.http.routers.${INSTANCE}.entrypoints=${ENTRY}
+      - traefik.http.routers.${INSTANCE}.tls=true
+      - traefik.http.routers.${INSTANCE}.tls.certresolver=${RESOLVER}
+      - traefik.http.services.${INSTANCE}.loadbalancer.server.port=3000
 networks:
   proxy:
     name: ${NET}
