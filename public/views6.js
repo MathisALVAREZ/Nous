@@ -67,7 +67,7 @@ function mountMap() {
     S.pmFitted = false;
   }
   S.map.invalidateSize();
-  const list = pFiltered(), sig = list.map(p => p.id + ':' + p.at).join('|') + S.users.map(u => u.id).join();
+  const list = pFiltered(), sig = JSON.stringify(list.map(p => [p.id, p.lat, p.lng, p.rating, p.comment, p.place, p.when, p.by])) + S.users.map(u => u.id).join();
   // on ne redessine les épingles que si elles ont changé : une bulle ouverte reste ouverte pendant les synchronisations
   if (sig !== S.pmSig) {
     S.pmSig = sig; S.pmLayer.clearLayers(); S.pmMarkers = {};
