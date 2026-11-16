@@ -24,7 +24,7 @@ const LOGIN_RE = /^[a-z0-9][a-z0-9.-]{1,29}$/; // pas de « _ » : il sert de s�
 fs.mkdirSync(FILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
-  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs'];
+  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops'];
 
 /* ---------- base ---------- */
 // Plusieurs couples dans une seule base : chaque donnée porte l'identifiant de son couple, et toute requête est filtrée dessus.
@@ -128,8 +128,8 @@ app.use((req, res, next) => {
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
     'X-Frame-Options': 'DENY',
-    'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
-    'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+    'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    'Permissions-Policy': 'geolocation=(self), microphone=(), camera=()' // la position ne sert qu'à la Caca map
   });
   next();
 });
@@ -319,6 +319,7 @@ function notify(c, col, doc, prev, user) {
       pushTo(o.id, { title: 'Question du jour', body: done ? `${n} a répondu, viens voir vos réponses 👀` : `${n} a répondu. À toi !`, tag: 'question', url: '/#question' }).catch(() => {});
     });
   }
+  if (col === 'poops' && !prev && cooled('poop:' + user.id, 60e3)) return send({ title: `💩 ${n}`, body: `${n} vient de poser une pêche${doc.rating ? ' · ' + '★'.repeat(doc.rating) : ''}${doc.place ? ' · ' + doc.place : ''}`, tag: 'caca', url: '/#caca' });
   if (col === 'pokes' && cooled('poke:' + user.id, 15e3)) return send({ title: `${n} pense à toi 💗`, body: doc.n > 1 ? `Déjà ${doc.n} fois aujourd'hui` : 'Juste comme ça.', tag: 'poke', url: '/' }, true);
   if (col === 'trips') {
     if (!prev) return send({ title: 'Trajets', body: `${n} a ajouté un trajet ${doc.from} → ${doc.to} le ${dm(doc.date)}`, tag: 'trajet', url: '/#trajets' });
@@ -368,6 +369,15 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
       }
     }
   }
+  if (col === 'poops') { // une position et une note valides, rien d'autre
+    const lat = +doc.lat, lng = +doc.lng;
+    if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) return res.status(400).json({ error: 'Position invalide' });
+    doc.lat = Math.round(lat * 1e6) / 1e6; doc.lng = Math.round(lng * 1e6) / 1e6;
+    doc.rating = Math.max(0, Math.min(5, Math.round(+doc.rating || 0)));
+    doc.comment = String(doc.comment || '').slice(0, 280); doc.place = String(doc.place || '').slice(0, 60);
+    doc.acc = doc.acc == null ? null : Math.max(0, Math.round(+doc.acc || 0)); doc.manual = !!doc.manual;
+    doc.when = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(doc.when || '') ? doc.when : new Date().toISOString().slice(0, 16);
+  }
   if (col === 'capsules' && prev) { if (prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); doc.text = prev.text; doc.openAt = prev.openAt; }
   if (col === 'pokes' || col === 'moods') doc.user = req.user.id;
   if (col === 'tlogs') {
@@ -375,7 +385,7 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
     if (!tr || (tr.by !== req.user.id && tr.vis !== 'both')) return res.status(403).json({ error: 'Compteur inaccessible' });
     doc.user = req.user.id;
   }
-  if ((col === 'scheduled' || col === 'moods' || col === 'cycles' || col === 'trackers' || col === 'tlogs' || col === 'pokes') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
+  if ((col === 'scheduled' || col === 'moods' || col === 'cycles' || col === 'trackers' || col === 'tlogs' || col === 'pokes' || col === 'poops') && prev && prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' });
   if (col === 'answers') { doc.user = req.user.id; if (prev && prev.user !== req.user.id) return res.status(403).json({ error: 'Pas ta réponse' }); }
   saveDoc(C, col, doc);
   const rev = bump(C);
@@ -386,7 +396,7 @@ app.delete('/api/c/:col/:id', auth, (req, res) => {
   const { col, id } = req.params;
   if (!COLS.includes(col)) return res.status(400).json({ error: 'Collection inconnue' });
   const C = req.c;
-  if (['scheduled', 'cycles', 'trackers', 'tlogs', 'capsules', 'pokes', 'moods', 'answers'].includes(col)) { const p = getDoc(C, col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
+  if (['scheduled', 'cycles', 'trackers', 'tlogs', 'capsules', 'pokes', 'moods', 'answers', 'poops'].includes(col)) { const p = getDoc(C, col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
   if (col === 'trackers') for (const l of allDocs(C, 'tlogs')) if (l.tracker === id) delDoc(C, 'tlogs', l.id);
   delDoc(C, col, id);
   res.json({ ok: true, rev: bump(C) });

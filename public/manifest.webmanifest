@@ -17,6 +17,7 @@
   "shortcuts": [
     { "name": "Envoyer un petit mot", "url": "/#mots" },
     { "name": "Ajouter une dépense", "url": "/#comptes" },
-    { "name": "Agenda", "url": "/#agenda" }
+    { "name": "Agenda", "url": "/#agenda" },
+    { "name": "Caca map", "url": "/#caca" }
   ]
 }

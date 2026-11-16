@@ -3,7 +3,7 @@
 const fs = require('fs'), path = require('path');
 const pub = f => fs.readFileSync(path.join(__dirname, '..', 'public', f), 'utf8');
 const esc = s => s.replace(/<\/script/gi, '<\\/script');
-const js = ['questions.js', 'core.js', 'views1.js', 'views2.js', 'views3.js', 'views4.js', 'views5.js'].map(pub).concat(fs.readFileSync(path.join(__dirname, 'seed.js'), 'utf8')).map(esc);
+const js = ['leaflet.js', 'questions.js', 'core.js', 'views1.js', 'views2.js', 'views3.js', 'views4.js', 'views5.js', 'views6.js'].map(pub).concat(fs.readFileSync(path.join(__dirname, 'seed.js'), 'utf8')).map(esc);
 const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -11,6 +11,7 @@ const html = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nous</title>
 <style>
+${pub('leaflet.css')}
 ${pub('style.css')}
 </style>
 </head>
