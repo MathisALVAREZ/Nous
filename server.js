@@ -429,10 +429,10 @@ const INLINE = /^(image\/(jpeg|png|gif|webp|heic|avif)|application\/pdf)$/;
 app.get('/api/files/:id', auth, (req, res) => {
   const f = db.prepare('SELECT * FROM files WHERE id=? AND couple=?').get(req.params.id, req.c);
   if (!f || !/^[a-f0-9]{32}$/.test(f.id)) return res.status(404).end();
-  const inline = INLINE.test(f.mime);
+  const inline = INLINE.test(f.mime) && req.query.dl !== '1'; // ?dl=1 : toujours en téléchargement
   res.set({
-    'Content-Type': inline ? f.mime : 'application/octet-stream',
-    'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.name)}`,
+    'Content-Type': INLINE.test(f.mime) ? f.mime : 'application/octet-stream',
+    'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${f.name.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(f.name)}`,
     'Cache-Control': 'private, max-age=31536000, immutable',
     'Content-Security-Policy': inline ? "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; object-src 'self'" : "default-src 'none'; sandbox"
   });

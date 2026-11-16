@@ -2091,6 +2091,22 @@ VIEWS.docs = () => {
       onDelete: async () => { B.delFile(f.fileId).catch(() => { }); await del('docfiles', f.id); }, deleteLabel: 'Supprimer le fichier'
     });
   };
+  const fileSheet = f => {
+    const url = B.fileUrl(f.fileId), img = /^image\//.test(f.mime || '');
+    let shareFile = null;
+    const c = openSheet(f.name, () => [
+      img ? h('div', { class: 'viewer' }, h('img', { src: url, alt: f.name })) : h('div', { class: 'row' }, h('span', { class: 'emo', style: { fontSize: '24px', width: '52px', height: '52px' } }, fileEmoji(f.mime || '')), h('div', { class: 'grow' }, h('div', { class: 'b', style: { overflowWrap: 'anywhere' } }, f.name), h('div', { class: 'small muted' }, `${size(f.size)} · ajouté par ${nameOf(f.by)} le ${fmtD(iso(new Date(f.at)), { day: 'numeric', month: 'long', year: 'numeric' })}`))),
+      h('a', { class: 'btn pri full', href: S.demo ? '#' : url + '?dl=1', download: f.name, onclick: e => { if (S.demo) { e.preventDefault(); toast('Le téléchargement fonctionne sur la version en ligne'); } } }, '⬇️ Télécharger'),
+      shareFile ? h('button', { class: 'btn full', onclick: () => navigator.share({ files: [shareFile], title: f.name }).catch(() => { }) }, '📤 Enregistrer ou envoyer…') : null,
+      !img && !S.demo ? h('a', { class: 'btn full', href: url, target: '_blank', rel: 'noopener' }, 'Ouvrir') : null,
+      h('button', { class: 'btn full', onclick: () => { c.close(); setTimeout(() => fileEdit(f), 350); } }, '✏️ Renommer, déplacer ou supprimer')
+    ]);
+    // Le partage de fichier exige le fichier déjà prêt au moment du tap : on le prépare dès l'ouverture de la fiche.
+    if (!S.demo && navigator.share && navigator.canShare) fetch(url, { credentials: 'same-origin' }).then(r => r.ok ? r.blob() : null).then(b => {
+      if (!b) return; const file = new File([b], f.name, { type: f.mime || b.type });
+      if (navigator.canShare({ files: [file] })) { shareFile = file; c.refresh(); }
+    }).catch(() => { });
+  };
   const folderEdit = () => formSheet({
     title: 'Modifier le dossier', values: { name: cur.name, emoji: cur.emoji || '📁' },
     fields: [{ k: 'name', label: 'Nom', required: true }, { k: 'emoji', label: 'Emoji', hint: list.length ? 'Pour supprimer le dossier, vide-le d\'abord.' : null }],
@@ -2100,7 +2116,7 @@ VIEWS.docs = () => {
   return [
     head(cur.name, { back: () => { S.folder = null; render(true); }, add, addLabel: 'Ajouter des fichiers', extra: h('button', { class: 'ibtn', 'aria-label': 'Renommer le dossier', onclick: folderEdit }, icon('edit')) }),
     sec(list.length ? h('div', { class: 'list' }, list.map(f => h('div', { class: 'item' },
-      h('button', { class: 'row grow', style: { textAlign: 'left', minWidth: '0' }, onclick: () => openDoc(f) }, h('span', { class: 'emo' }, fileEmoji(f.mime || '')), h('div', { class: 'grow', style: { minWidth: '0' } }, h('div', { class: 'b ell' }, f.name), h('div', { class: 'small muted' }, `${size(f.size)} · ${nameOf(f.by)} · ${fmtD(iso(new Date(f.at)))}`))),
+      h('button', { class: 'row grow', style: { textAlign: 'left', minWidth: '0' }, onclick: () => fileSheet(f) }, h('span', { class: 'emo' }, fileEmoji(f.mime || '')), h('div', { class: 'grow', style: { minWidth: '0' } }, h('div', { class: 'b ell' }, f.name), h('div', { class: 'small muted' }, `${size(f.size)} · ${nameOf(f.by)} · ${fmtD(iso(new Date(f.at)))}`))),
       h('button', { class: 'ibtn', style: { width: '38px', height: '38px' }, 'aria-label': 'Renommer, déplacer ou supprimer ' + f.name, onclick: () => fileEdit(f) }, icon('edit'))))) : h('div', { class: 'empty' }, 'Dossier vide. Ajoutez des fichiers avec le bouton +.'))
   ];
 };
