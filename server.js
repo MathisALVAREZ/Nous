@@ -378,6 +378,10 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
     doc.acc = doc.acc == null ? null : Math.max(0, Math.round(+doc.acc || 0)); doc.manual = !!doc.manual;
     doc.when = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(doc.when || '') ? doc.when : new Date().toISOString().slice(0, 16);
   }
+  if (col === 'docfiles' && /^[a-f0-9]{32}$/.test(String(doc.fileId || ''))) { // le nom affiché sert aussi au téléchargement
+    doc.name = String(doc.name || '').replace(/[\r\n"\\/]/g, '-').trim().slice(0, 200) || (prev && prev.name) || 'fichier';
+    db.prepare('UPDATE files SET name=? WHERE id=? AND couple=?').run(doc.name, doc.fileId, C);
+  }
   if (col === 'capsules' && prev) { if (prev.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); doc.text = prev.text; doc.openAt = prev.openAt; }
   if (col === 'pokes' || col === 'moods') doc.user = req.user.id;
   if (col === 'tlogs') {

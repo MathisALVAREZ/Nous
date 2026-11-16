@@ -93,12 +93,27 @@ VIEWS.docs = () => {
       catch (e) { toast(e.message || 'Envoi impossible'); }
     }
   };
+  const folderOpts = () => all('folders').sort((a, b) => a.name.localeCompare(b.name)).map(x => [x.id, (x.emoji || '📁') + ' ' + x.name]);
+  const fileEdit = f => {
+    const m = f.name.match(/^(.+?)(\.[A-Za-z0-9]{1,6})?$/) || [], base = m[1] || f.name, ext = m[2] || '';
+    formSheet({
+      title: 'Modifier le fichier', values: { name: base, folder: f.folder },
+      fields: [{ k: 'name', label: 'Nom', required: true, hint: ext ? `L'extension ${ext} est gardée automatiquement.` : null }, { k: 'folder', label: 'Dossier', type: 'select', options: folderOpts() }],
+      onSubmit: v => { let n = v.name.trim().replace(/[\\/\r\n"]/g, '-'); if (!n) { toast('Donne un nom'); return false; } if (ext && !n.toLowerCase().endsWith(ext.toLowerCase())) n += ext; return put('docfiles', { ...f, name: n, folder: v.folder }); },
+      onDelete: async () => { B.delFile(f.fileId).catch(() => { }); await del('docfiles', f.id); }, deleteLabel: 'Supprimer le fichier'
+    });
+  };
+  const folderEdit = () => formSheet({
+    title: 'Modifier le dossier', values: { name: cur.name, emoji: cur.emoji || '📁' },
+    fields: [{ k: 'name', label: 'Nom', required: true }, { k: 'emoji', label: 'Emoji', hint: list.length ? 'Pour supprimer le dossier, vide-le d\'abord.' : null }],
+    onSubmit: v => put('folders', { ...cur, name: v.name.trim(), emoji: (v.emoji || '').trim() || '📁' }),
+    onDelete: list.length ? null : async () => { S.folder = null; await del('folders', cur.id); }, deleteLabel: 'Supprimer le dossier'
+  });
   return [
-    head(cur.name, { back: () => { S.folder = null; render(true); }, add, addLabel: 'Ajouter des fichiers' }),
+    head(cur.name, { back: () => { S.folder = null; render(true); }, add, addLabel: 'Ajouter des fichiers', extra: h('button', { class: 'ibtn', 'aria-label': 'Renommer le dossier', onclick: folderEdit }, icon('edit')) }),
     sec(list.length ? h('div', { class: 'list' }, list.map(f => h('div', { class: 'item' },
-      h('button', { class: 'row grow', style: { textAlign: 'left' }, onclick: () => openDoc(f) }, h('span', { class: 'emo' }, fileEmoji(f.mime || '')), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, f.name), h('div', { class: 'small muted' }, `${size(f.size)} · ${nameOf(f.by)} · ${fmtD(iso(new Date(f.at)))}`))),
-      h('button', { class: 'ibtn', style: { width: '34px', height: '34px' }, 'aria-label': 'Supprimer ' + f.name, onclick: async () => { if (await confirmSheet('Supprimer ce fichier ?', f.name, 'Supprimer', true)) { B.delFile(f.fileId).catch(() => { }); del('docfiles', f.id); } } }, icon('x'))))) : h('div', { class: 'empty' }, 'Dossier vide. Ajoutez des fichiers avec le bouton +.')),
-    !list.length && h('button', { class: 'btn danger', onclick: async () => { if (await confirmSheet('Supprimer ce dossier ?', '', 'Supprimer', true)) { S.folder = null; del('folders', cur.id); } } }, 'Supprimer le dossier')
+      h('button', { class: 'row grow', style: { textAlign: 'left', minWidth: '0' }, onclick: () => openDoc(f) }, h('span', { class: 'emo' }, fileEmoji(f.mime || '')), h('div', { class: 'grow', style: { minWidth: '0' } }, h('div', { class: 'b ell' }, f.name), h('div', { class: 'small muted' }, `${size(f.size)} · ${nameOf(f.by)} · ${fmtD(iso(new Date(f.at)))}`))),
+      h('button', { class: 'ibtn', style: { width: '38px', height: '38px' }, 'aria-label': 'Renommer, déplacer ou supprimer ' + f.name, onclick: () => fileEdit(f) }, icon('edit'))))) : h('div', { class: 'empty' }, 'Dossier vide. Ajoutez des fichiers avec le bouton +.'))
   ];
 };
 

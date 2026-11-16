@@ -31,7 +31,7 @@ const ICON = {
   grid: 'M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z',
   plus: 'M12 5v14M5 12h14', back: 'M15 5l-7 7 7 7', next: 'M9 5l7 7-7 7', x: 'M6 6l12 12M18 6L6 18',
   heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
-  send: 'M4 12l16-8-6 16-3-6.5z', pin: 'M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+  send: 'M4 12l16-8-6 16-3-6.5z', edit: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4', pin: 'M12 21s-6-5.7-6-11a6 6 0 0 1 12 0c0 5.3-6 11-6 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
   cmp: 'M4 6h16M4 12h16M4 18h16M9 3v18', rep: 'M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5'
 };
 const icon = n => h('span', { style: { display: 'contents' }, html: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[n]}"/></svg>` });
