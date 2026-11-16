@@ -1,10 +1,7 @@
 'use strict';
 /* Nous — Caca map : chaque passage sur le trône, épinglé sur une vraie carte, noté et commenté. */
-const PM_TILES = {
-  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-};
-const PM_ATTR = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+const PM_TILES = '/tiles/{z}/{x}/{y}.png'; // OpenStreetMap, via le cache du serveur
+const PM_ATTR = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">contributeurs OpenStreetMap</a>';
 const isDark = () => { const t = D.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
 const starsTxt = n => '★'.repeat(n || 0) + '☆'.repeat(5 - (n || 0));
 const nowLocalInput = () => { const d = new Date(); return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
@@ -59,7 +56,8 @@ function mountMap() {
   if (!L || !S.mapEl || !S.mapEl.isConnected) return;
   if (!S.map) {
     S.map = L.map(S.mapEl, { zoomControl: false, attributionControl: true, worldCopyJump: true }).setView([48.8566, 2.3522], 12);
-    if (!S.demo) L.tileLayer(isDark() ? PM_TILES.dark : PM_TILES.light, { subdomains: 'abcd', maxZoom: 19, attribution: PM_ATTR, crossOrigin: true }).addTo(S.map);
+    if (!S.demo) L.tileLayer(PM_TILES, { maxZoom: 19, attribution: PM_ATTR }).addTo(S.map);
+    S.mapEl.classList.toggle('dark', isDark()); // version sombre obtenue en inversant les couleurs des tuiles
     else S.map.attributionControl.addAttribution('Démo : le fond de carte s\'affiche sur la version en ligne');
     L.control.zoom({ position: 'bottomright' }).addTo(S.map);
     S.pmLayer = L.layerGroup().addTo(S.map);

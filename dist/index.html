@@ -923,6 +923,7 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 
 .pmap { height: min(56vh, 440px); border-radius: 24px; overflow: hidden; position: relative; z-index: 0; isolation: isolate; border: 1px solid var(--edge); box-shadow: var(--shadow); background: linear-gradient(135deg, color-mix(in srgb, var(--blob1) 35%, var(--bg)), color-mix(in srgb, var(--blob3) 35%, var(--bg))); }
 .pmap.leaflet-container { font: inherit; }
+.pmap.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.88) saturate(.7); }
 .pmicon { background: none; border: 0; }
 .pm { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; font-size: 21px; line-height: 1; background: var(--glass2); border: 3px solid var(--c); box-shadow: 0 4px 14px rgba(0, 0, 0, .3); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--glass2); color: var(--ink); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); box-shadow: var(--shadow); border: 1px solid var(--edge); }
@@ -2883,11 +2884,8 @@ VIEWS.admin = () => {
 <script>
 'use strict';
 /* Nous — Caca map : chaque passage sur le trône, épinglé sur une vraie carte, noté et commenté. */
-const PM_TILES = {
-  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-};
-const PM_ATTR = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+const PM_TILES = '/tiles/{z}/{x}/{y}.png'; // OpenStreetMap, via le cache du serveur
+const PM_ATTR = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">contributeurs OpenStreetMap</a>';
 const isDark = () => { const t = D.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
 const starsTxt = n => '★'.repeat(n || 0) + '☆'.repeat(5 - (n || 0));
 const nowLocalInput = () => { const d = new Date(); return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
@@ -2942,7 +2940,8 @@ function mountMap() {
   if (!L || !S.mapEl || !S.mapEl.isConnected) return;
   if (!S.map) {
     S.map = L.map(S.mapEl, { zoomControl: false, attributionControl: true, worldCopyJump: true }).setView([48.8566, 2.3522], 12);
-    if (!S.demo) L.tileLayer(isDark() ? PM_TILES.dark : PM_TILES.light, { subdomains: 'abcd', maxZoom: 19, attribution: PM_ATTR, crossOrigin: true }).addTo(S.map);
+    if (!S.demo) L.tileLayer(PM_TILES, { maxZoom: 19, attribution: PM_ATTR }).addTo(S.map);
+    S.mapEl.classList.toggle('dark', isDark()); // version sombre obtenue en inversant les couleurs des tuiles
     else S.map.attributionControl.addAttribution('Démo : le fond de carte s\'affiche sur la version en ligne');
     L.control.zoom({ position: 'bottomright' }).addTo(S.map);
     S.pmLayer = L.layerGroup().addTo(S.map);

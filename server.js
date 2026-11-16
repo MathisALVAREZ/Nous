@@ -21,7 +21,8 @@ const TZ = 'Europe/Paris';
 // Villes proposées par défaut dans l'agenda d'un nouveau couple (chaque couple les change dans Réglages)
 const CITIES = (process.env.NOUS_CITIES || 'Paris').split(',').map(s => s.trim()).filter(Boolean).slice(0, 6);
 const LOGIN_RE = /^[a-z0-9][a-z0-9.-]{1,29}$/; // pas de « _ » : il sert de séparateur dans les identifiants de documents
-fs.mkdirSync(FILES, { recursive: true });
+const TILES = path.join(DATA, 'tiles'); // cache des fonds de carte
+fs.mkdirSync(FILES, { recursive: true }); fs.mkdirSync(TILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
   'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops'];
@@ -128,7 +129,7 @@ app.use((req, res, next) => {
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
     'X-Frame-Options': 'DENY',
-    'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
     'Permissions-Policy': 'geolocation=(self), microphone=(), camera=()' // la position ne sert qu'à la Caca map
   });
   next();
@@ -466,6 +467,7 @@ async function daily() {
   if (hourNow() < 9 || getMeta('daily') === t) return;
   setMeta('daily', t);
   for (const { id } of db.prepare('SELECT id FROM couples').all()) { try { await dailyFor(id, t); } catch (e) { console.error(e); } }
+  try { for (const f of fs.readdirSync(TILES)) { const p = path.join(TILES, f); if (Date.now() - fs.statSync(p).mtimeMs > 60 * 864e5) fs.unlinkSync(p); } } catch (e) { } // tuiles inutilisées depuis 2 mois
 }
 async function dailyFor(c, t) {
   const us = usersOf(c); if (!us.length) return;
@@ -521,6 +523,26 @@ function deliverScheduled() {
   for (const c of touched) bump(c);
 }
 setInterval(() => { try { deliverScheduled(); } catch (e) { console.error(e); } }, 20e3);
+
+/* ---------- fonds de carte (Caca map) ---------- */
+// Les tuiles OpenStreetMap passent par le serveur : mises en cache, envoyées avec un User-Agent identifié comme le demande
+// la politique d'usage d'OpenStreetMap, et sans exposer les adresses IP des utilisateurs. Réservé aux comptes connectés.
+const TILE_UA = `Nous/1.0 (app privee de couple; ${(process.env.VAPID_SUBJECT || 'mailto:contact@kratox.fr').replace('mailto:', '')})`;
+const tileHeaders = { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=604800' };
+app.get('/tiles/:z/:x/:y.png', auth, async (req, res) => {
+  const z = +req.params.z, x = +req.params.x, y = +req.params.y, n = 2 ** z;
+  if (![z, x, y].every(Number.isInteger) || z < 0 || z > 19 || x < 0 || y < 0 || x >= n || y >= n) return res.status(400).end();
+  const file = path.join(TILES, `${z}-${x}-${y}.png`);
+  let stale = null;
+  try { const st = fs.statSync(file); if (Date.now() - st.mtimeMs < 30 * 864e5) return res.set(tileHeaders).sendFile(file); stale = file; } catch (e) { }
+  try {
+    const r = await fetch(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`, { headers: { 'User-Agent': TILE_UA }, signal: AbortSignal.timeout(10000) });
+    if (!r.ok) throw new Error('tuile ' + r.status);
+    const buf = Buffer.from(await r.arrayBuffer());
+    fs.writeFile(file, buf, () => {});
+    res.set(tileHeaders).send(buf);
+  } catch (e) { if (stale) return res.set(tileHeaders).sendFile(stale); res.status(504).end(); }
+});
 
 /* ---------- administration ---------- */
 // L'administration voit qui utilise l'app et combien de place ça prend, jamais le contenu des couples.
