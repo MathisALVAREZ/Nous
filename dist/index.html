@@ -2940,8 +2940,8 @@ function mountMap() {
   if (!L || !S.mapEl || !S.mapEl.isConnected) return;
   if (!S.map) {
     S.map = L.map(S.mapEl, { zoomControl: false, attributionControl: true, worldCopyJump: true }).setView([48.8566, 2.3522], 12);
-    if (!S.demo) L.tileLayer(PM_TILES, { maxZoom: 19, attribution: PM_ATTR }).addTo(S.map);
     S.mapEl.classList.toggle('dark', isDark()); // version sombre obtenue en inversant les couleurs des tuiles
+    if (!S.demo) L.tileLayer(PM_TILES, { maxZoom: 19, attribution: PM_ATTR }).addTo(S.map);
     else S.map.attributionControl.addAttribution('Démo : le fond de carte s\'affiche sur la version en ligne');
     L.control.zoom({ position: 'bottomright' }).addTo(S.map);
     S.pmLayer = L.layerGroup().addTo(S.map);
