@@ -25,7 +25,7 @@ const TILES = path.join(DATA, 'tiles'); // cache des fonds de carte
 fs.mkdirSync(FILES, { recursive: true }); fs.mkdirSync(TILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
-  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops'];
+  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps'];
 
 /* ---------- base ---------- */
 // Plusieurs couples dans une seule base : chaque donnée porte l'identifiant de son couple, et toute requête est filtrée dessus.
@@ -270,7 +270,9 @@ app.post('/api/password', auth, async (req, res) => {
 
 /* ---------- données ---------- */
 // Ce que chacun a le droit de voir : pas la réservation de ses propres envies, pas la réponse de l'autre avant d'avoir répondu.
-function viewFor(col, doc, me, mine, sharers, hiddenT) {
+function viewFor(col, doc, me, mine, sharers, hiddenT, mySnaps) {
+  // Instant du jour : la photo de l'autre reste cachée tant qu'on n'a pas posté la sienne ce jour-là
+  if (col === 'snaps' && doc.user !== me && !(mySnaps && mySnaps.has(doc.date))) return { id: doc.id, date: doc.date, user: doc.user, by: doc.by, at: doc.at, when: doc.when, onTime: doc.onTime, hidden: true };
   if (col === 'wishes' && doc.owner === me) { const d = { ...doc }; delete d.reservedBy; return d; }
   if (col === 'answers' && doc.user !== me && !mine.has(doc.date)) return { id: doc.id, date: doc.date, user: doc.user, by: doc.by, at: doc.at, hidden: true };
   if (col === 'scheduled' && doc.by !== me) return null;
@@ -283,7 +285,8 @@ function viewFor(col, doc, me, mine, sharers, hiddenT) {
 }
 app.get('/api/sync', auth, (req, res) => {
   const rev = revOf(req.c);
-  if (+req.query.rev === rev) return res.json({ same: true, rev, v: VERSION });
+  const snapAt = snapSignalFor(req.c);
+  if (+req.query.rev === rev) return res.json({ same: true, rev, v: VERSION, snapAt });
   const me = req.user.id, cols = {};
   const rows = db.prepare('SELECT col, data FROM docs WHERE couple=?').all(req.c);
   const parsed = rows.map(r => [r.col, JSON.parse(r.data)]);
@@ -291,8 +294,9 @@ app.get('/api/sync', auth, (req, res) => {
   for (const c of COLS) cols[c] = {};
   const hiddenT = new Set(parsed.filter(([c, d]) => c === 'trackers' && d.by !== me && (d.vis || 'private') === 'private').map(([, d]) => d.id));
   const sharers = new Set(parsed.filter(([c, d]) => c === 'profiles' && d.shareCycle === true).map(([, d]) => d.id));
-  for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers, hiddenT); if (v) cols[c][d.id] = v; }
-  res.json({ rev, me: { id: me, name: req.user.name, admin: !!req.user.admin }, users: usersOf(req.c), cols, vapid: vapid.publicKey, today: today(), v: VERSION, cities: CITIES });
+  const mySnaps = new Set(parsed.filter(([c, d]) => c === 'snaps' && d.user === me).map(([, d]) => d.date));
+  for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers, hiddenT, mySnaps); if (v) cols[c][d.id] = v; }
+  res.json({ rev, me: { id: me, name: req.user.name, admin: !!req.user.admin }, users: usersOf(req.c), cols, vapid: vapid.publicKey, today: today(), v: VERSION, cities: CITIES, snapAt });
 });
 
 const lastPing = new Map();
@@ -319,6 +323,12 @@ function notify(c, col, doc, prev, user) {
       const done = getD('answers', doc.date + '_' + o.id);
       pushTo(o.id, { title: 'Question du jour', body: done ? `${n} a répondu, viens voir vos réponses 👀` : `${n} a répondu. À toi !`, tag: 'question', url: '/#question' }).catch(() => {});
     });
+  }
+  if (col === 'snaps') {
+    if (!prev) return others.forEach(o => { const has = getD('snaps', `${doc.date}_${o.id}`); pushTo(o.id, { title: `📸 ${n} a posté son instant`, body: has ? 'Viens voir !' : 'Poste le tien pour le voir 👀', tag: 'instant', url: '/' }).catch(() => {}); });
+    const r = (doc.reactions || {})[user.id];
+    if (r && r !== (prev.reactions || {})[user.id]) return pushTo(prev.user, { title: 'Instant du jour', body: `${n} a réagi ${r} à ton instant`, tag: 'instant', url: '/#instants' }).catch(() => {});
+    return;
   }
   if (col === 'poops' && !prev && cooled('poop:' + user.id, 60e3)) return send({ title: `💩 ${n}`, body: `${n} vient de poser une pêche${doc.rating ? ' · ' + '★'.repeat(doc.rating) : ''}${doc.place ? ' · ' + doc.place : ''}`, tag: 'caca', url: '/#caca' });
   if (col === 'pokes' && cooled('poke:' + user.id, 15e3)) return send({ title: `${n} pense à toi 💗`, body: doc.n > 1 ? `Déjà ${doc.n} fois aujourd'hui` : 'Juste comme ça.', tag: 'poke', url: '/' }, true);
@@ -370,6 +380,22 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
       }
     }
   }
+  if (col === 'snaps') { // une photo par personne et par jour, le jour même ; l'autre ne peut que réagir
+    const t = today(), now = nowLocal();
+    if (!prev) {
+      if (id !== `${t}_${req.user.id}`) return res.status(403).json({ error: 'Un seul instant par jour, à prendre le jour même' });
+      if (!db.prepare('SELECT 1 FROM files WHERE id=? AND couple=?').get(String(doc.fileId || ''), C)) return res.status(400).json({ error: 'Photo introuvable' });
+      const sig = snapTimeFor(C, t), when = now.slice(11, 16), late = toMin(when) - toMin(sig);
+      Object.assign(doc, { date: t, user: req.user.id, when, onTime: late >= 0 && late <= 10, lateMin: late > 10 ? late : null, reactions: {} });
+    } else if (prev.user === req.user.id) return res.status(409).json({ error: 'Tu as déjà posté ton instant aujourd\'hui' });
+    else {
+      if (!getDoc(C, 'snaps', `${prev.date}_${req.user.id}`)) return res.status(403).json({ error: 'Poste ton instant pour pouvoir réagir' });
+      const r = String((((req.body || {}).reactions) || {})[req.user.id] || '').slice(0, 8), reactions = { ...(prev.reactions || {}) };
+      if (r) reactions[req.user.id] = r; else delete reactions[req.user.id];
+      for (const k of Object.keys(doc)) delete doc[k];
+      Object.assign(doc, prev, { at: Date.now(), reactions });
+    }
+  }
   if (col === 'poops') { // une position et une note valides, rien d'autre
     const lat = +doc.lat, lng = +doc.lng;
     if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) return res.status(400).json({ error: 'Position invalide' });
@@ -401,7 +427,7 @@ app.delete('/api/c/:col/:id', auth, (req, res) => {
   const { col, id } = req.params;
   if (!COLS.includes(col)) return res.status(400).json({ error: 'Collection inconnue' });
   const C = req.c;
-  if (['scheduled', 'cycles', 'trackers', 'tlogs', 'capsules', 'pokes', 'moods', 'answers', 'poops'].includes(col)) { const p = getDoc(C, col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
+  if (['scheduled', 'cycles', 'trackers', 'tlogs', 'capsules', 'pokes', 'moods', 'answers', 'poops', 'snaps'].includes(col)) { const p = getDoc(C, col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
   if (col === 'trackers') for (const l of allDocs(C, 'tlogs')) if (l.tracker === id) delDoc(C, 'tlogs', l.id);
   delDoc(C, col, id);
   res.json({ ok: true, rev: bump(C) });
@@ -523,6 +549,27 @@ function deliverScheduled() {
   for (const c of touched) bump(c);
 }
 setInterval(() => { try { deliverScheduled(); } catch (e) { console.error(e); } }, 20e3);
+
+/* ---------- Instant du jour : un signal par couple et par jour, à une heure tirée au hasard ---------- */
+const toMin = hm => +hm.slice(0, 2) * 60 + +hm.slice(3, 5);
+function snapTimeFor(c, d) { // entre 10 h et 21 h 30, heure de Paris, tirée une fois par jour
+  const k = `snap:${c}:${d}`; let v = getMeta(k);
+  if (!v) { const m = 600 + crypto.randomInt(0, 691); v = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; setMeta(k, v); }
+  return v;
+}
+// L'heure du signal n'est révélée qu'une fois passée, pour garder la surprise.
+function snapSignalFor(c) { const now = nowLocal(), at = snapTimeFor(c, now.slice(0, 10)); return now.slice(11, 16) >= at ? at : null; }
+function snapSignals() {
+  const now = nowLocal(), t = now.slice(0, 10), hm = now.slice(11, 16);
+  for (const { id } of db.prepare('SELECT id FROM couples').all()) {
+    const at = snapTimeFor(id, t), k = `snapsent:${id}:${t}`;
+    if (hm < at || getMeta(k)) continue;
+    setMeta(k, '1'); bump(id);
+    if (toMin(hm) - toMin(at) > 30) continue; // serveur redémarré bien après l'heure : pas de signal en retard
+    for (const u of usersOf(id)) if (!getDoc(id, 'snaps', `${t}_${u.id}`)) pushTo(u.id, { title: '⚡ C\'est l\'heure de l\'instant !', body: 'Tu as 10 minutes pour prendre ton instant du jour 📸', tag: 'instant', url: '/' }).catch(() => {});
+  }
+}
+setInterval(() => { try { snapSignals(); } catch (e) { console.error(e); } }, 30e3);
 
 /* ---------- fonds de carte (Caca map) ---------- */
 // Les tuiles OpenStreetMap passent par le serveur : mises en cache, envoyées avec un User-Agent identifié comme le demande

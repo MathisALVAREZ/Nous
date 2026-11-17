@@ -86,6 +86,7 @@ VIEWS.home = () => {
         h('p', { class: tg ? 'mid grow' : 'muted grow' }, !tg ? 'Indiquez vos villes dans l\'agenda pour voir quand vous vous retrouvez.'
           : tg.in === 0 ? `Ensemble à ${tg.place}${tg.end > t ? ' jusqu\'à ' + fmtD(tg.end, { weekday: 'long', day: 'numeric', month: 'long' }) : ' aujourd\'hui'}`
             : `Retrouvailles à ${tg.place}, ${fmtD(tg.date, { weekday: 'long', day: 'numeric', month: 'long' })}`))),
+    snapCard(),
     pokeCard(),
     todayCard(),
     moodCard(),

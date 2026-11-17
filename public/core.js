@@ -2,7 +2,7 @@
 /* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
 const D = document;
 const $ = (s, r = D) => r.querySelector(s);
-const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops'];
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps'];
 const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
 let B = null; // stockage actif
 const VIEWS = {};
@@ -84,13 +84,13 @@ function checkVersion(v) {
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
 }
 function applySync(j) {
-  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid;
+  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; S.snapAt = j.snapAt || null;
   const own = ((j.cols.profiles || {})._couple || {}).cities; // les villes choisies par le couple, sinon celles par défaut du serveur
   if (typeof setCities === 'function') setCities(own && own.length ? own : j.cities);
 }
 const Remote = {
   async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
-  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if (j.same) return false; applySync(j); return true; },
+  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if ('snapAt' in j && j.snapAt !== S.snapAt) { S.snapAt = j.snapAt; if (j.same) render(); } if (j.same) return false; applySync(j); return true; },
   login: (l, p) => api('POST', '/api/login', { login: l, password: p }),
   logout: () => api('POST', '/api/logout', {}),
   put: (col, doc) => api('PUT', `/api/c/${col}/${encodeURIComponent(doc.id)}`, doc).then(() => { S.rev = -1; }),
@@ -115,6 +115,7 @@ const Demo = {
   view() {
     const me = S.me.id, cols = {};
     const mine = new Set(Object.values(this.raw.answers).filter(a => a.user === me).map(a => a.date));
+    const mySnaps = new Set(Object.values(this.raw.snaps || {}).filter(s => s.user === me).map(s => s.date));
     const hiddenT = new Set(Object.values(this.raw.trackers || {}).filter(t => t.by !== me && (t.vis || 'private') === 'private').map(t => t.id));
     for (const c of COLS) {
       cols[c] = {};
@@ -123,6 +124,7 @@ const Demo = {
         if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
         if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
         if (c === 'scheduled' && d.by !== me) continue;
+        if (c === 'snaps' && d.user !== me && !mySnaps.has(d.date)) v = { id: d.id, date: d.date, user: d.user, when: d.when, onTime: d.onTime, hidden: true };
         if (c === 'quiz' && d.about !== me && !d.guess) { v = { ...d }; delete v.answer; } // la réponse reste cachée tant qu'on n'a pas deviné
         if (c === 'capsules' && d.by !== me && d.openAt > iso(new Date())) { v = { ...d, sealed: true }; delete v.text; }
         if ((c === 'trackers' && hiddenT.has(d.id)) || (c === 'tlogs' && (hiddenT.has(d.tracker) || !this.raw.trackers[d.tracker]))) continue; // compteurs privés
@@ -138,7 +140,7 @@ const Demo = {
     let me = this.meId; try { me = me || localStorage.getItem('nous-demo-me'); } catch (e) { }
     me = me || 'mathis'; // la démo s'ouvre directement, sans passer par la connexion
     if (me === '-') return false;
-    S.me = S.users.find(u => u.id === me) || S.users[0]; this.view(); return true;
+    S.me = S.users.find(u => u.id === me) || S.users[0]; S.snapAt = '12:34'; this.view(); return true;
   },
   async login(l) {
     const u = DEMO_USERS.find(u => u.id === String(l).trim().toLowerCase());
@@ -326,9 +328,9 @@ function formSheet({ title, fields, values = {}, submit = 'Enregistrer', onSubmi
 }
 
 /* ----- fichiers ----- */
-function pickFiles(accept, multiple) {
+function pickFiles(accept, multiple, capture) { // capture : 'environment' ou 'user' ouvre directement l'appareil photo
   return new Promise(res => {
-    const i = h('input', { type: 'file', accept: accept || '', multiple: !!multiple, style: { display: 'none' }, onchange: () => { res([...i.files]); i.remove(); } });
+    const i = h('input', { type: 'file', accept: accept || '', multiple: !!multiple, capture: capture || null, style: { display: 'none' }, onchange: () => { res([...i.files]); i.remove(); } });
     D.body.append(i); i.click();
   });
 }

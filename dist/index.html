@@ -937,6 +937,15 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 .big-stars { font-size: 34px; gap: 6px; }
 .pmgo { min-height: 56px; font-size: 17px; background: linear-gradient(135deg, #8b5a2b, #c68642) !important; box-shadow: 0 8px 22px rgba(139, 90, 43, .45), inset 0 1px 0 rgba(255, 255, 255, .3) !important; }
 
+.snapgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.snapf { position: relative; aspect-ratio: 3 / 4; border-radius: 20px; overflow: hidden; background: var(--field); border: 1px solid var(--edge); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0; text-align: center; }
+.snapf img { width: 100%; height: 100%; object-fit: cover; }
+.snapf.empty { padding: 10px; }
+.snapf.locked { background: linear-gradient(145deg, color-mix(in srgb, var(--blob2) 45%, var(--field)), color-mix(in srgb, var(--blob3) 45%, var(--field))); }
+.snapf.take { border: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent); }
+.snaptag { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 650; color: #fff; background: rgba(0, 0, 0, .45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.snapre { position: absolute; right: 8px; top: 8px; font-size: 18px; padding: 2px 6px; border-radius: 999px; background: rgba(0, 0, 0, .35); }
+
 /* plus */
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .tile { aspect-ratio: 1.05; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 8px; text-align: center; font-size: 13px; font-weight: 650; border-radius: 24px; transition: transform .16s; }
@@ -1125,7 +1134,7 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 /* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
 const D = document;
 const $ = (s, r = D) => r.querySelector(s);
-const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops'];
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps'];
 const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
 let B = null; // stockage actif
 const VIEWS = {};
@@ -1207,13 +1216,13 @@ function checkVersion(v) {
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
 }
 function applySync(j) {
-  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid;
+  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; S.snapAt = j.snapAt || null;
   const own = ((j.cols.profiles || {})._couple || {}).cities; // les villes choisies par le couple, sinon celles par défaut du serveur
   if (typeof setCities === 'function') setCities(own && own.length ? own : j.cities);
 }
 const Remote = {
   async boot() { try { applySync(await api('GET', '/api/sync')); return true; } catch (e) { return false; } },
-  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if (j.same) return false; applySync(j); return true; },
+  async sync() { const j = await api('GET', '/api/sync?rev=' + S.rev); checkVersion(j.v); if ('snapAt' in j && j.snapAt !== S.snapAt) { S.snapAt = j.snapAt; if (j.same) render(); } if (j.same) return false; applySync(j); return true; },
   login: (l, p) => api('POST', '/api/login', { login: l, password: p }),
   logout: () => api('POST', '/api/logout', {}),
   put: (col, doc) => api('PUT', `/api/c/${col}/${encodeURIComponent(doc.id)}`, doc).then(() => { S.rev = -1; }),
@@ -1238,6 +1247,7 @@ const Demo = {
   view() {
     const me = S.me.id, cols = {};
     const mine = new Set(Object.values(this.raw.answers).filter(a => a.user === me).map(a => a.date));
+    const mySnaps = new Set(Object.values(this.raw.snaps || {}).filter(s => s.user === me).map(s => s.date));
     const hiddenT = new Set(Object.values(this.raw.trackers || {}).filter(t => t.by !== me && (t.vis || 'private') === 'private').map(t => t.id));
     for (const c of COLS) {
       cols[c] = {};
@@ -1246,6 +1256,7 @@ const Demo = {
         if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
         if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
         if (c === 'scheduled' && d.by !== me) continue;
+        if (c === 'snaps' && d.user !== me && !mySnaps.has(d.date)) v = { id: d.id, date: d.date, user: d.user, when: d.when, onTime: d.onTime, hidden: true };
         if (c === 'quiz' && d.about !== me && !d.guess) { v = { ...d }; delete v.answer; } // la réponse reste cachée tant qu'on n'a pas deviné
         if (c === 'capsules' && d.by !== me && d.openAt > iso(new Date())) { v = { ...d, sealed: true }; delete v.text; }
         if ((c === 'trackers' && hiddenT.has(d.id)) || (c === 'tlogs' && (hiddenT.has(d.tracker) || !this.raw.trackers[d.tracker]))) continue; // compteurs privés
@@ -1261,7 +1272,7 @@ const Demo = {
     let me = this.meId; try { me = me || localStorage.getItem('nous-demo-me'); } catch (e) { }
     me = me || 'mathis'; // la démo s'ouvre directement, sans passer par la connexion
     if (me === '-') return false;
-    S.me = S.users.find(u => u.id === me) || S.users[0]; this.view(); return true;
+    S.me = S.users.find(u => u.id === me) || S.users[0]; S.snapAt = '12:34'; this.view(); return true;
   },
   async login(l) {
     const u = DEMO_USERS.find(u => u.id === String(l).trim().toLowerCase());
@@ -1449,9 +1460,9 @@ function formSheet({ title, fields, values = {}, submit = 'Enregistrer', onSubmi
 }
 
 /* ----- fichiers ----- */
-function pickFiles(accept, multiple) {
+function pickFiles(accept, multiple, capture) { // capture : 'environment' ou 'user' ouvre directement l'appareil photo
   return new Promise(res => {
-    const i = h('input', { type: 'file', accept: accept || '', multiple: !!multiple, style: { display: 'none' }, onchange: () => { res([...i.files]); i.remove(); } });
+    const i = h('input', { type: 'file', accept: accept || '', multiple: !!multiple, capture: capture || null, style: { display: 'none' }, onchange: () => { res([...i.files]); i.remove(); } });
     D.body.append(i); i.click();
   });
 }
@@ -1675,6 +1686,7 @@ VIEWS.home = () => {
         h('p', { class: tg ? 'mid grow' : 'muted grow' }, !tg ? 'Indiquez vos villes dans l\'agenda pour voir quand vous vous retrouvez.'
           : tg.in === 0 ? `Ensemble à ${tg.place}${tg.end > t ? ' jusqu\'à ' + fmtD(tg.end, { weekday: 'long', day: 'numeric', month: 'long' }) : ' aujourd\'hui'}`
             : `Retrouvailles à ${tg.place}, ${fmtD(tg.date, { weekday: 'long', day: 'numeric', month: 'long' })}`))),
+    snapCard(),
     pokeCard(),
     todayCard(),
     moodCard(),
@@ -2786,6 +2798,7 @@ function trophies() {
     T('🏅', 'Défi relevé', 'Un défi de la semaine réussi à deux', defisOk, 1), T('🥇', 'Champions', '10 défis réussis à deux', defisOk, 10),
     T('🎯', 'Je te connais', '10 bonnes réponses au quiz', all('quiz').filter(r => r.ok).length, 10), T('💊', 'Message pour le futur', 'Une capsule scellée', n('capsules'), 1),
     T('🏝️', 'Objectif atteint', 'Une cagnotte remplie', potOk ? 1 : 0, 1), T('🧹', 'Maison nickel', '20 tâches faites', n('chorelog'), 20),
+    T('⚡', 'Pris sur le vif', '10 instants pris à l\'heure', all('snaps').filter(s => s.onTime).length, 10), T('📸', 'Instantanés', '60 instants postés à deux', n('snaps'), 60),
     T('💩', 'Cartographes du trône', '10 pêches sur la Caca map', n('poops'), 10), T('🗺️', 'Globe-trotteurs', 'Des pêches dans 5 lieux différents', new Set(all('poops').map(p => `${(+p.lat).toFixed(3)},${(+p.lng).toFixed(3)}`)).size, 5), T('👑', 'Trône légendaire', 'Un caca noté 5 étoiles', all('poops').filter(p => p.rating === 5).length, 1),
     T('🎶', 'Bande-son', '10 morceaux dans la playlist', n('songs'), 10), T('📖', 'Notre histoire', '5 moments dans la frise', n('milestones'), 5),
     T('🗓️', 'Un an', '365 jours ensemble', days, 365), T('💎', 'Mille jours', '1 000 jours ensemble', days, 1000)
@@ -2818,7 +2831,7 @@ VIEWS.bilan = () => {
       tile('💗', sum(all('pokes').filter(p => inM(p.date)).map(p => p.n)), '« je pense à toi »'), tile('💬', qBoth, 'questions répondues à deux'),
       tile('🥂', evs.length, 'sorties et soirées'), tile('📸', photos.length, 'photos ajoutées'),
       tile('💶', eur0(sum(exp.map(e => e.amount))), 'dépensés ensemble'), tile('🔑', visits, `appart${visits > 1 ? 's' : ''} visité${visits > 1 ? 's' : ''}`),
-      tile('🎟️', all('coupons').filter(c => tsIn(c.usedAt)).length, 'bons utilisés'), tile('🧹', all('chorelog').filter(l => inM(l.date)).length, 'tâches faites'), tile('💩', all('poops').filter(p => inM(p.when)).length, 'pêches sur la carte')),
+      tile('🎟️', all('coupons').filter(c => tsIn(c.usedAt)).length, 'bons utilisés'), tile('🧹', all('chorelog').filter(l => inM(l.date)).length, 'tâches faites'), tile('💩', all('poops').filter(p => inM(p.when)).length, 'pêches sur la carte'), tile('⚡', all('snaps').filter(s => inM(s.date)).length, 'instants du jour')),
     sec(eyebrow('Humeur du mois'), h('div', { class: 'row', style: { justifyContent: 'space-around' } }, S.users.map(u => h('div', { class: 'row' }, avatar(u.id, true), h('span', { style: { fontSize: '30px' } }, mood(u.id)))))),
     big ? sec(eyebrow('La plus grosse dépense'), h('div', { class: 'row' }, h('span', { class: 'emo' }, catOf(big.cat)[1]), h('div', { class: 'grow' }, h('div', { class: 'b' }, big.label), h('div', { class: 'small muted' }, `${fmtD(big.date)} · ${nameOf(big.paidBy)}`)), h('span', { class: 'amt' }, eur(big.amount)))) : null,
     photos.length ? sec(eyebrow('En images'), h('div', { class: 'pgrid' }, photos.slice(0, 9).map(p => h('button', { onclick: () => photoSheet(p.id), 'aria-label': p.caption || 'Photo' }, h('img', { src: B.fileUrl(p.fileId), alt: p.caption || '', loading: 'lazy' }))))) : null
@@ -2844,7 +2857,7 @@ VIEWS.plus = () => {
     ['Nous deux', [['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['envies', '🎁', 'Envies'], ['playlist', '🎶', 'Playlist'], ['cycle', '🌸', 'Cycle']]],
     ['Quotidien', [['listes', '✅', 'Listes', all('items').filter(i => !i.done).length], ['menu', '🍽️', 'Menu'], ['taches', '🧹', 'Qui fait quoi', all('chores').filter(c => c.next <= t && c.turn === me).length], ['cagnotte', '🏝️', 'Cagnottes'], ['trajets', '🚄', 'Trajets'], ['infos', '📌', 'Infos pratiques'], ['docs', '🗂️', 'Documents'], ['suivi', '📊', 'Suivi']]],
     ['Jeux', [['roue', '🎡', 'La roue'], ['defi', '🏅', 'Défi', ((S.cols.defis || {})[w] || { done: {} }).done[me] ? 0 : 1], ['quiz', '🎯', 'Quiz', all('quiz').filter(r => (r.about === o.id && !r.guess) || (r.about === me && r.guess && r.ok == null)).length], ['tribunal', '⚖️', 'Tribunal', all('disputes').filter(d => !d.winner && !(d.sides || {})[me]).length], ['caca', '💩', 'Caca map'], ['trophees', '🏆', 'Trophées']]],
-    ['Souvenirs', [['photos', '📸', 'Photos'], ['histoire', '📖', 'Notre histoire'], ['capsules', '💊', 'Capsules'], ['bilan', '📅', 'Bilan du mois'], ['rebours', '⏳', 'Comptes à rebours']]]
+    ['Souvenirs', [['instants', '⚡', 'Instants', snapOf(t, me) ? 0 : 1], ['photos', '📸', 'Photos'], ['histoire', '📖', 'Notre histoire'], ['capsules', '💊', 'Capsules'], ['bilan', '📅', 'Bilan du mois'], ['rebours', '⏳', 'Comptes à rebours']]]
   ];
   return [head('Plus', { extra: h('button', { class: 'ibtn', 'aria-label': 'Réglages', onclick: () => go('reglages') }, '⚙️') }),
   groups.map(([name, tiles]) => [h('div', { class: 'eyebrow', style: { padding: '6px 4px 0' } }, name), h('div', { class: 'tiles' }, tiles.map(([id, e, lab, n]) => h('button', { class: 'glass tile', onclick: () => go(id) }, h('span', { class: 'e' }, e), lab, n ? h('span', { class: 'badge' }, n) : null)))])];
@@ -3018,6 +3031,112 @@ VIEWS.caca = () => {
 </script>
 <script>
 'use strict';
+/* Nous — Instant du jour (façon BeReal) : un signal à une heure surprise, une photo par jour chacun,
+   et la photo de l'autre ne se dévoile qu'une fois la sienne postée (vérifié aussi côté serveur). */
+const snapOf = (d, u) => (S.cols.snaps || {})[d + '_' + u];
+const SNAP_REACTS = ['😍', '😂', '🥰', '😮', '🔥', '👍'];
+const hhmm = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+
+/* ----- composition : photo arrière plein cadre, selfie en médaillon ----- */
+async function composeSnap(back, front) {
+  const W = S.demo ? 600 : 1080, H = Math.round(W * 4 / 3);
+  const cv = D.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const clip = (x, y, w, h, r) => { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); };
+  const draw = async (file, x, y, w, h, r) => {
+    const b = await createImageBitmap(file), s = Math.max(w / b.width, h / b.height), dw = b.width * s, dh = b.height * s;
+    g.save(); if (r) { clip(x, y, w, h, r); g.clip(); }
+    g.drawImage(b, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); g.restore();
+  };
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  await draw(back, 0, 0, W, H, 0);
+  if (front) {
+    const fw = Math.round(W * .3), fh = Math.round(fw * 4 / 3), m = Math.round(W * .04), r = Math.round(W * .035), b = Math.round(W * .006);
+    g.fillStyle = '#000'; clip(m - b, m - b, fw + 2 * b, fh + 2 * b, r + b); g.fill();
+    await draw(front, m, m, fw, fh, r);
+  }
+  return await new Promise((res, rej) => cv.toBlob(x => x ? res(x) : rej(new Error('Image illisible')), 'image/jpeg', S.demo ? .72 : .86));
+}
+
+/* ----- prise de l'instant : appareil arrière, puis selfie (un tap chacun : le téléphone l'exige) ----- */
+function takeSnap() {
+  if (snapOf(today(), S.me.id)) return toast('Tu as déjà pris ton instant aujourd\'hui');
+  pickFiles('image/*', false, 'environment').then(fs => { if (fs.length) snapStep2(fs[0]); });
+}
+function snapStep2(back) {
+  const url = URL.createObjectURL(back); let busy = false;
+  const publish = async front => {
+    if (busy) return; busy = true; toast('Publication…');
+    try {
+      const blob = await composeSnap(back, front);
+      const m = await B.upload(blob, `instant-${today()}.jpg`);
+      await put('snaps', { id: today() + '_' + S.me.id, date: today(), user: S.me.id, fileId: m.id, when: hhmm(), onTime: S.demo ? true : undefined, reactions: {} });
+      c.close(); URL.revokeObjectURL(url);
+      toast(S.demo ? `Publié ⚡ En vrai, ${other().name} est prévenu` : 'Instant publié ⚡');
+    } catch (e) { busy = false; toast(e.message || 'Publication impossible'); }
+  };
+  const c = openSheet('Ton instant', () => [
+    h('div', { class: 'viewer' }, h('img', { src: url, alt: 'Aperçu de ta photo' })),
+    h('button', { class: 'btn pri full', onclick: () => pickFiles('image/*', false, 'user').then(fs => { if (fs.length) publish(fs[0]); }) }, '🤳 Ajouter un selfie et publier'),
+    h('button', { class: 'btn full', onclick: () => publish(null) }, 'Publier sans selfie'),
+    h('p', { class: 'small faint center' }, `${other().name} ne verra ta photo qu'après avoir posté la sienne, et inversement.`)
+  ], { onClose: () => { if (!busy) URL.revokeObjectURL(url); } });
+}
+
+/* ----- affichage ----- */
+function snapFrame(s, u) {
+  if (s && !s.hidden) return h('button', { class: 'snapf', 'aria-label': `Instant de ${nameOf(u)}`, onclick: () => snapSheet(s) },
+    h('img', { src: B.fileUrl(s.fileId), alt: '', loading: 'lazy' }),
+    h('span', { class: 'snaptag' }, nameOf(u) + (s.when ? ' · ' + s.when : '') + (s.onTime ? ' ⚡' : '')),
+    s.reactions && Object.keys(s.reactions).length ? h('span', { class: 'snapre' }, Object.values(s.reactions).join('')) : null);
+  const today_ = s ? s.date === today() : true;
+  return h('div', { class: 'snapf empty' + (s ? ' locked' : '') },
+    h('div', { style: { fontSize: '30px' } }, s ? '🔒' : '⏳'),
+    h('div', { class: 'small b' }, s ? `${nameOf(u)} a posté` : u === S.me.id ? 'Pas d\'instant' : `En attente de ${nameOf(u)}`),
+    s ? h('div', { class: 'tiny muted' }, today_ ? 'Poste le tien pour le voir' : 'Tu n\'avais pas posté ce jour-là') : null);
+}
+function snapSheet(s) {
+  const mine = s.user === S.me.id;
+  openSheet(mine ? 'Ton instant' : `Instant de ${nameOf(s.user)}`, c => {
+    const cur = (S.cols.snaps || {})[s.id] || s, re = cur.reactions || {};
+    return [
+      h('div', { class: 'viewer' }, h('img', { src: B.fileUrl(cur.fileId), alt: `Instant de ${nameOf(cur.user)}` })),
+      h('div', { class: 'small muted' }, `${cap(fmtD(cur.date, { weekday: 'long', day: 'numeric', month: 'long' }))}${cur.when ? ' à ' + cur.when : ''}${cur.onTime ? ' · ⚡ pris à l\'heure' : cur.lateMin ? ` · ${cur.lateMin >= 60 ? Math.floor(cur.lateMin / 60) + ' h ' + pad(cur.lateMin % 60) : cur.lateMin + ' min'} après le signal` : ''}`),
+      mine ? (Object.keys(re).length ? h('div', { class: 'chips' }, Object.entries(re).map(([u, e]) => h('span', { class: 'chip' }, avatar(u, true), ' ', e))) : h('p', { class: 'small faint' }, 'Pas encore de réaction.'))
+        : h('div', { class: 'chips' }, SNAP_REACTS.map(e => h('button', { class: 'chip' + (re[S.me.id] === e ? ' on' : ''), style: { fontSize: '22px' }, 'aria-label': 'Réagir ' + e, onclick: async () => { const r = { ...re }; if (r[S.me.id] === e) delete r[S.me.id]; else r[S.me.id] = e; await put('snaps', { ...cur, reactions: r }); c.refresh(); } }, e))),
+      mine && cur.date === today() ? h('button', { class: 'btn danger full', onclick: async () => { if (await confirmSheet('Supprimer ton instant ?', 'Tu pourras en reprendre un aujourd\'hui.', 'Supprimer', true)) { B.delFile(cur.fileId).catch(() => { }); c.close(); del('snaps', cur.id); } } }, 'Supprimer et reprendre') : null
+    ];
+  });
+}
+function snapStreak() {
+  const both = d => S.users.every(u => snapOf(d, u.id));
+  let n = 0, d = today(); if (!both(d)) d = addDays(d, -1);
+  while (both(d) && n < 999) { n++; d = addDays(d, -1); }
+  return n;
+}
+function snapCard() {
+  const t = today(), me = S.me.id, o = other(), mine = snapOf(t, me), his = snapOf(t, o.id);
+  const sig = S.snapAt ? h('span', { class: 'pill plain', c: 'var(--u1)' }, '⚡ ' + S.snapAt) : h('span', { class: 'tiny faint' }, 'Signal surprise à venir');
+  return h('section', { class: 'glass card' }, eyebrow('Instant du jour', sig),
+    h('div', { class: 'snapgrid' }, snapFrame(his, o.id),
+      mine ? snapFrame(mine, me) : h('button', { class: 'snapf empty take', onclick: takeSnap }, h('div', { style: { fontSize: '32px' } }, '📸'), h('div', { class: 'b' }, 'Prendre mon instant'), h('div', { class: 'tiny muted' }, S.snapAt ? 'C\'est l\'heure !' : 'Dès maintenant ou au signal'))),
+    h('button', { class: 'btn sm', style: { alignSelf: 'flex-start' }, onclick: () => go('instants') }, 'Tous les instants'));
+}
+VIEWS.instants = () => {
+  const days = [...new Set(all('snaps').map(s => s.date))].sort().reverse(), st = snapStreak(), t = today();
+  if (!days.includes(t)) days.unshift(t);
+  return [
+    head('Instants', { back: 'plus', sub: 'Une photo par jour, sur le moment', extra: st ? h('span', { class: 'pill plain', c: 'var(--warn)' }, `🔥 ${st} jour${st > 1 ? 's' : ''}`) : null }),
+    days.map(d => sec(eyebrow(cap(fmtD(d, { weekday: 'long', day: 'numeric', month: 'long' })), d === t && S.snapAt ? h('span', { class: 'pill plain', c: 'var(--u1)' }, '⚡ ' + S.snapAt) : null),
+      h('div', { class: 'snapgrid' }, S.users.map(u => d === t && u.id === S.me.id && !snapOf(d, u.id)
+        ? h('button', { class: 'snapf empty take', onclick: takeSnap }, h('div', { style: { fontSize: '32px' } }, '📸'), h('div', { class: 'b' }, 'Prendre mon instant'))
+        : snapFrame(snapOf(d, u.id), u.id)))))
+  ];
+};
+
+</script>
+<script>
+'use strict';
 /* Données d'exemple pour la version de démonstration uniquement (jamais chargé sur le serveur). */
 window.nousSeed = function () {
   const t = today(), now = Date.now(), ym = t.slice(0, 7), M = 'mathis', G = 'morgane';
@@ -3056,6 +3175,13 @@ window.nousSeed = function () {
   add('pokes', { id: t + '_' + G, date: t, user: G, n: 2, last: now - 3600e3 }, G);
   add('songs', { title: 'Le morceau du trajet retour', artist: 'À remplacer par le vrai', why: 'Il passait dans la voiture en rentrant de Biarritz.' }, G, 30);
   add('songs', { title: 'Celui du premier concert', artist: 'À remplacer par le vrai', why: 'On l\'a hurlé tous les deux.' }, M, 200);
+  // instants du jour : les deux sur les jours passés, Morgane seule aujourd'hui (verrouillé pour Mathis)
+  [[3, '🌆', '#ff9a8b', '#6a5cff', '🍜', '#ffd27a', '#ff6fa3'], [2, '💻', '#7fb5ff', '#3d5a80', '🍷', '#c49bff', '#ff8fb1'], [1, '🚇', '#9be7c4', '#3a7bd5', '☕', '#ffcf8b', '#d4835c']].forEach(([a, e1, c1, c2, e2, c3, c4]) => {
+    const d = addDays(t, -a);
+    add('snaps', { id: d + '_' + M, date: d, user: M, fileId: pic(e1, c1, c2), when: '12:3' + a, onTime: a !== 2, reactions: { [G]: '😍' } }, M, a * 24);
+    add('snaps', { id: d + '_' + G, date: d, user: G, fileId: pic(e2, c3, c4), when: '12:4' + a, onTime: true, reactions: a === 1 ? { [M]: '🔥' } : {} }, G, a * 24);
+  });
+  add('snaps', { id: t + '_' + G, date: t, user: G, fileId: pic('🥐', '#ffe0a3', '#ff9a76'), when: '12:36', onTime: true, reactions: {} }, G, 1);
   // caca map
   [[48.8414, 2.3203, 4, 'Bureau, Montparnasse', 'Propre, mais la chasse fait un bruit d\'avion', M, 1], [48.8530, 2.3412, 5, 'Chez Allard', 'Le grand luxe, savon qui sent bon', G, 2], [44.8378, -0.5792, 2, 'Campus de Bordeaux', 'Plus de papier. Classique.', M, 3], [48.7012, 2.1305, 5, 'Chez mes parents', 'Rien ne vaut la maison', M, 5], [48.8566, 2.3522, 3, 'Un café près de l\'Hôtel de Ville', 'Correct, file d\'attente de 10 minutes', G, 6], [48.8398, 2.3215, 3, 'Gare Montparnasse', 'Payant, mais propre', M, 9]]
     .forEach(([lat, lng, rating, place, comment, u, a]) => { const w = new Date(now - a * 864e5 + 3600e3 * (a % 5)); add('poops', { lat, lng, acc: 12, rating, place, comment, when: `${iso(w)}T${pad(w.getHours())}:${pad(w.getMinutes())}` }, u, a * 24); });

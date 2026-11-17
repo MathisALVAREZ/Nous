@@ -270,6 +270,7 @@ function trophies() {
     T('🏅', 'Défi relevé', 'Un défi de la semaine réussi à deux', defisOk, 1), T('🥇', 'Champions', '10 défis réussis à deux', defisOk, 10),
     T('🎯', 'Je te connais', '10 bonnes réponses au quiz', all('quiz').filter(r => r.ok).length, 10), T('💊', 'Message pour le futur', 'Une capsule scellée', n('capsules'), 1),
     T('🏝️', 'Objectif atteint', 'Une cagnotte remplie', potOk ? 1 : 0, 1), T('🧹', 'Maison nickel', '20 tâches faites', n('chorelog'), 20),
+    T('⚡', 'Pris sur le vif', '10 instants pris à l\'heure', all('snaps').filter(s => s.onTime).length, 10), T('📸', 'Instantanés', '60 instants postés à deux', n('snaps'), 60),
     T('💩', 'Cartographes du trône', '10 pêches sur la Caca map', n('poops'), 10), T('🗺️', 'Globe-trotteurs', 'Des pêches dans 5 lieux différents', new Set(all('poops').map(p => `${(+p.lat).toFixed(3)},${(+p.lng).toFixed(3)}`)).size, 5), T('👑', 'Trône légendaire', 'Un caca noté 5 étoiles', all('poops').filter(p => p.rating === 5).length, 1),
     T('🎶', 'Bande-son', '10 morceaux dans la playlist', n('songs'), 10), T('📖', 'Notre histoire', '5 moments dans la frise', n('milestones'), 5),
     T('🗓️', 'Un an', '365 jours ensemble', days, 365), T('💎', 'Mille jours', '1 000 jours ensemble', days, 1000)
@@ -302,7 +303,7 @@ VIEWS.bilan = () => {
       tile('💗', sum(all('pokes').filter(p => inM(p.date)).map(p => p.n)), '« je pense à toi »'), tile('💬', qBoth, 'questions répondues à deux'),
       tile('🥂', evs.length, 'sorties et soirées'), tile('📸', photos.length, 'photos ajoutées'),
       tile('💶', eur0(sum(exp.map(e => e.amount))), 'dépensés ensemble'), tile('🔑', visits, `appart${visits > 1 ? 's' : ''} visité${visits > 1 ? 's' : ''}`),
-      tile('🎟️', all('coupons').filter(c => tsIn(c.usedAt)).length, 'bons utilisés'), tile('🧹', all('chorelog').filter(l => inM(l.date)).length, 'tâches faites'), tile('💩', all('poops').filter(p => inM(p.when)).length, 'pêches sur la carte')),
+      tile('🎟️', all('coupons').filter(c => tsIn(c.usedAt)).length, 'bons utilisés'), tile('🧹', all('chorelog').filter(l => inM(l.date)).length, 'tâches faites'), tile('💩', all('poops').filter(p => inM(p.when)).length, 'pêches sur la carte'), tile('⚡', all('snaps').filter(s => inM(s.date)).length, 'instants du jour')),
     sec(eyebrow('Humeur du mois'), h('div', { class: 'row', style: { justifyContent: 'space-around' } }, S.users.map(u => h('div', { class: 'row' }, avatar(u.id, true), h('span', { style: { fontSize: '30px' } }, mood(u.id)))))),
     big ? sec(eyebrow('La plus grosse dépense'), h('div', { class: 'row' }, h('span', { class: 'emo' }, catOf(big.cat)[1]), h('div', { class: 'grow' }, h('div', { class: 'b' }, big.label), h('div', { class: 'small muted' }, `${fmtD(big.date)} · ${nameOf(big.paidBy)}`)), h('span', { class: 'amt' }, eur(big.amount)))) : null,
     photos.length ? sec(eyebrow('En images'), h('div', { class: 'pgrid' }, photos.slice(0, 9).map(p => h('button', { onclick: () => photoSheet(p.id), 'aria-label': p.caption || 'Photo' }, h('img', { src: B.fileUrl(p.fileId), alt: p.caption || '', loading: 'lazy' }))))) : null
@@ -328,7 +329,7 @@ VIEWS.plus = () => {
     ['Nous deux', [['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['envies', '🎁', 'Envies'], ['playlist', '🎶', 'Playlist'], ['cycle', '🌸', 'Cycle']]],
     ['Quotidien', [['listes', '✅', 'Listes', all('items').filter(i => !i.done).length], ['menu', '🍽️', 'Menu'], ['taches', '🧹', 'Qui fait quoi', all('chores').filter(c => c.next <= t && c.turn === me).length], ['cagnotte', '🏝️', 'Cagnottes'], ['trajets', '🚄', 'Trajets'], ['infos', '📌', 'Infos pratiques'], ['docs', '🗂️', 'Documents'], ['suivi', '📊', 'Suivi']]],
     ['Jeux', [['roue', '🎡', 'La roue'], ['defi', '🏅', 'Défi', ((S.cols.defis || {})[w] || { done: {} }).done[me] ? 0 : 1], ['quiz', '🎯', 'Quiz', all('quiz').filter(r => (r.about === o.id && !r.guess) || (r.about === me && r.guess && r.ok == null)).length], ['tribunal', '⚖️', 'Tribunal', all('disputes').filter(d => !d.winner && !(d.sides || {})[me]).length], ['caca', '💩', 'Caca map'], ['trophees', '🏆', 'Trophées']]],
-    ['Souvenirs', [['photos', '📸', 'Photos'], ['histoire', '📖', 'Notre histoire'], ['capsules', '💊', 'Capsules'], ['bilan', '📅', 'Bilan du mois'], ['rebours', '⏳', 'Comptes à rebours']]]
+    ['Souvenirs', [['instants', '⚡', 'Instants', snapOf(t, me) ? 0 : 1], ['photos', '📸', 'Photos'], ['histoire', '📖', 'Notre histoire'], ['capsules', '💊', 'Capsules'], ['bilan', '📅', 'Bilan du mois'], ['rebours', '⏳', 'Comptes à rebours']]]
   ];
   return [head('Plus', { extra: h('button', { class: 'ibtn', 'aria-label': 'Réglages', onclick: () => go('reglages') }, '⚙️') }),
   groups.map(([name, tiles]) => [h('div', { class: 'eyebrow', style: { padding: '6px 4px 0' } }, name), h('div', { class: 'tiles' }, tiles.map(([id, e, lab, n]) => h('button', { class: 'glass tile', onclick: () => go(id) }, h('span', { class: 'e' }, e), lab, n ? h('span', { class: 'badge' }, n) : null)))])];

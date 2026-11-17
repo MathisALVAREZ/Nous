@@ -37,6 +37,13 @@ window.nousSeed = function () {
   add('pokes', { id: t + '_' + G, date: t, user: G, n: 2, last: now - 3600e3 }, G);
   add('songs', { title: 'Le morceau du trajet retour', artist: 'À remplacer par le vrai', why: 'Il passait dans la voiture en rentrant de Biarritz.' }, G, 30);
   add('songs', { title: 'Celui du premier concert', artist: 'À remplacer par le vrai', why: 'On l\'a hurlé tous les deux.' }, M, 200);
+  // instants du jour : les deux sur les jours passés, Morgane seule aujourd'hui (verrouillé pour Mathis)
+  [[3, '🌆', '#ff9a8b', '#6a5cff', '🍜', '#ffd27a', '#ff6fa3'], [2, '💻', '#7fb5ff', '#3d5a80', '🍷', '#c49bff', '#ff8fb1'], [1, '🚇', '#9be7c4', '#3a7bd5', '☕', '#ffcf8b', '#d4835c']].forEach(([a, e1, c1, c2, e2, c3, c4]) => {
+    const d = addDays(t, -a);
+    add('snaps', { id: d + '_' + M, date: d, user: M, fileId: pic(e1, c1, c2), when: '12:3' + a, onTime: a !== 2, reactions: { [G]: '😍' } }, M, a * 24);
+    add('snaps', { id: d + '_' + G, date: d, user: G, fileId: pic(e2, c3, c4), when: '12:4' + a, onTime: true, reactions: a === 1 ? { [M]: '🔥' } : {} }, G, a * 24);
+  });
+  add('snaps', { id: t + '_' + G, date: t, user: G, fileId: pic('🥐', '#ffe0a3', '#ff9a76'), when: '12:36', onTime: true, reactions: {} }, G, 1);
   // caca map
   [[48.8414, 2.3203, 4, 'Bureau, Montparnasse', 'Propre, mais la chasse fait un bruit d\'avion', M, 1], [48.8530, 2.3412, 5, 'Chez Allard', 'Le grand luxe, savon qui sent bon', G, 2], [44.8378, -0.5792, 2, 'Campus de Bordeaux', 'Plus de papier. Classique.', M, 3], [48.7012, 2.1305, 5, 'Chez mes parents', 'Rien ne vaut la maison', M, 5], [48.8566, 2.3522, 3, 'Un café près de l\'Hôtel de Ville', 'Correct, file d\'attente de 10 minutes', G, 6], [48.8398, 2.3215, 3, 'Gare Montparnasse', 'Payant, mais propre', M, 9]]
     .forEach(([lat, lng, rating, place, comment, u, a]) => { const w = new Date(now - a * 864e5 + 3600e3 * (a % 5)); add('poops', { lat, lng, acc: 12, rating, place, comment, when: `${iso(w)}T${pad(w.getHours())}:${pad(w.getMinutes())}` }, u, a * 24); });

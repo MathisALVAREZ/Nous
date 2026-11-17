@@ -3,7 +3,7 @@
 L'app à deux : agenda et villes, comptes partagés, recherche d'appart, petits mots avec notifications,
 question du jour, photos, documents, listes, envies, comptes à rebours, roue, humeur du jour,
 notre histoire, bons à offrir, mots programmés, « je pense à toi », menu de la semaine, tâches, cagnottes, trajets, infos pratiques,
-tribunal, défi de la semaine, quiz, capsules, trophées, bilan du mois, playlist, compteurs personnels (privés, partagés ou à deux) et suivi du cycle (privé, partagé seulement si la personne l'active).
+tribunal, défi de la semaine, quiz, capsules, trophées, bilan du mois, playlist, instant du jour (photo façon BeReal, visible seulement après avoir posté la sienne), compteurs personnels (privés, partagés ou à deux) et suivi du cycle (privé, partagé seulement si la personne l'active).
 
 ## Mise en ligne sur le VPS (morgane.kratox.fr)
 
