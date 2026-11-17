@@ -31,6 +31,18 @@ VIEWS.admin = () => {
       h('div', { class: 'center' }, h('div', { class: 'big num' }, A.couples.reduce((s, c) => s + c.users.length, 0)), h('div', { class: 'tiny muted' }, 'comptes')),
       h('div', { class: 'center' }, h('div', { class: 'big num' }, size(total)), h('div', { class: 'tiny muted' }, 'de fichiers')))),
     h('button', { class: 'btn pri full', onclick: invite }, 'Inviter un couple'),
+    sec(eyebrow('Notification à tout le monde'),
+      h('p', { class: 'small muted' }, 'Envoyée sur le téléphone de tous les comptes, tous espaces confondus, s\'ils ont activé les notifications.'),
+      h('button', { class: 'btn full', onclick: () => formSheet({
+        title: 'Notification générale', submit: 'Continuer', values: { title: 'Nous' },
+        fields: [{ k: 'title', label: 'Titre', required: true }, { k: 'body', label: 'Message', type: 'textarea', ph: 'Nouvelle mise à jour : …', required: true, hint: '300 caractères maximum.' }],
+        onSubmit: async v => {
+          const nb = A.couples.reduce((s, c) => s + c.users.length, 0);
+          if (!(await confirmSheet(`Envoyer à ${nb} compte${nb > 1 ? 's' : ''} ?`, `« ${v.title} » : ${v.body}`, 'Envoyer'))) return false;
+          const r = await api('POST', '/api/admin/broadcast', v);
+          toast(r.devices ? `Envoyée sur ${r.devices} appareil${r.devices > 1 ? 's' : ''} (${r.reached} compte${r.reached > 1 ? 's' : ''} sur ${r.users})` : 'Personne n\'a encore activé les notifications');
+        }
+      }) }, '📣 Envoyer une notification')),
     A.invites.length ? sec(eyebrow('Invitations en attente'), h('div', { class: 'list' }, A.invites.map(i => h('div', { class: 'item' }, h('span', { class: 'emo' }, '✉️'), h('div', { class: 'grow' }, h('div', { class: 'b ell' }, i.note || 'Sans nom'), h('div', { class: 'small muted' }, `Expire ${rel(iso(new Date(i.expires)))}`)),
       h('button', { class: 'btn sm danger', onclick: async () => { if (await confirmSheet('Annuler cette invitation ?', 'Le lien ne fonctionnera plus.', 'Annuler l\'invitation', true)) act(() => api('DELETE', '/api/admin/invite/' + i.id)); } }, 'Annuler'))))) : null,
     sec(eyebrow('Espaces'), h('div', { class: 'list' }, A.couples.map(c => h('div', { class: 'item', style: { alignItems: 'flex-start', flexDirection: 'column', gap: '8px' } },

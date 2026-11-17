@@ -444,11 +444,29 @@ function ensureDefaults() {
   };
   for (const col in def) for (const [id, d] of def[col]) if (!S.cols[col][id]) B.put(col, S.cols[col][id] = { id, ...d, by: S.me.id, at: Date.now() }).catch(() => { });
 }
+/* ----- nouveautés : une fenêtre après chaque mise à jour, mémorisée par compte ----- */
+function newsSheet(entries, markSeen) {
+  const latest = (window.NOUS_NEWS || [])[0];
+  openSheet('Quoi de neuf ✨', c => [
+    entries.map(n => h('div', { class: 'col', style: { gap: '6px' } },
+      h('div', { class: 'eyebrow' }, cap(fmtD(n.date, { day: 'numeric', month: 'long' }))),
+      h('div', { class: 'mid' }, n.title),
+      h('ul', { class: 'newslist' }, n.items.map(t => h('li', null, t))))),
+    h('button', { class: 'btn pri full', onclick: () => c.close() }, 'C\'est noté')
+  ], { onClose: () => { if (markSeen && latest) put('profiles', { ...profile(S.me.id), id: S.me.id, newsSeen: latest.id }); } });
+}
+function showNews() {
+  const all_ = window.NOUS_NEWS || [], seen = profile(S.me.id).newsSeen;
+  if (!all_.length || seen === all_[0].id || $('#sheets').children.length) return;
+  const i = seen ? all_.findIndex(n => n.id === seen) : -1;
+  newsSheet(i === -1 ? (seen ? all_ : all_.slice(0, 1)) : all_.slice(0, i), true); // nouveau compte : seulement la dernière nouveauté
+}
 function enter() {
   for (const c of COLS) S.cols[c] = S.cols[c] || {};
   ensureDefaults(); genRecurring();
   const v = location.hash.slice(1); S.view = VIEWS[v] ? v : 'home';
   render(true);
+  if (!enter.newsShown) { enter.newsShown = true; setTimeout(showNews, 700); }
   if (!enter.done) {
     enter.done = true;
     setInterval(() => { if (!D.hidden) doSync(); }, 15000);

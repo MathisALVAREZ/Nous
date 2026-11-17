@@ -52,6 +52,14 @@ Mettre à jour toutes les copies d'un coup : `bash deploy/maj-tous.sh`.
 Sauvegarde : ajouter `deploy/backup.sh` au cron (voir l'en-tête du script).
 Mise à jour : remplacer les fichiers puis `docker compose up -d --build`.
 
+## Mises à jour : la fenêtre « Quoi de neuf »
+
+Chaque mise à jour visible par les utilisateurs ajoute une entrée en tête de `public/news.js` (id unique, date, titre,
+quelques puces). La fenêtre s'ouvre une fois par compte après la mise à jour, puis reste accessible dans Réglages →
+Nouveautés. Les fonctions d'administration n'y figurent jamais.
+
+L'administrateur peut aussi envoyer une notification à tous les comptes : Administration → Notification à tout le monde.
+
 ## Sécurité
 
 - Deux comptes seulement, créés au premier démarrage ; aucune inscription possible.

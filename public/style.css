@@ -277,6 +277,8 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 .snaptag { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 650; color: #fff; background: rgba(0, 0, 0, .45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .snapre { position: absolute; right: 8px; top: 8px; font-size: 18px; padding: 2px 6px; border-radius: 999px; background: rgba(0, 0, 0, .35); }
 
+.newslist { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--ink2); line-height: 1.45; }
+
 /* plus */
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .tile { aspect-ratio: 1.05; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 8px; text-align: center; font-size: 13px; font-weight: 650; border-radius: 24px; transition: transform .16s; }

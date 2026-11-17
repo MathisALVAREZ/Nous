@@ -610,6 +610,18 @@ app.delete('/api/admin/invite/:id', auth, adminOnly, (req, res) => {
   db.prepare("DELETE FROM invites WHERE kind='couple' AND used_at IS NULL AND substr(id,1,16)=?").run(req.params.id);
   res.json({ ok: true });
 });
+// Notification générale : envoyée à tous les comptes de tous les espaces (texte libre, pas de contenu des couples).
+let lastBroadcast = 0;
+app.post('/api/admin/broadcast', auth, adminOnly, async (req, res) => {
+  const title = cleanName((req.body || {}).title) || 'Nous', body = String((req.body || {}).body || '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, 300);
+  if (!body) return res.status(400).json({ error: 'Écris un message' });
+  if (Date.now() - lastBroadcast < 60e3) return res.status(429).json({ error: 'Une notification générale par minute au maximum' });
+  lastBroadcast = Date.now();
+  const us = db.prepare('SELECT id FROM users').all();
+  let devices = 0, reached = 0;
+  for (const u of us) { const n = await pushTo(u.id, { title, body, tag: 'annonce-' + Date.now(), url: '/' }).catch(() => 0); devices += n; if (n) reached++; }
+  res.json({ users: us.length, reached, devices });
+});
 app.post('/api/admin/reset', auth, adminOnly, async (req, res) => {
   const u = userById(String((req.body || {}).user || ''));
   if (!u) return res.status(404).json({ error: 'Compte introuvable' });
