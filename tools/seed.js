@@ -118,5 +118,11 @@ window.nousSeed = function () {
   // photos
   [['🌊', '#7fc8ff', '#ffe1a8', 'Biarritz', 40], ['🍝', '#ffb3a8', '#ffd98f', 'Le resto du samedi', 12], ['🌇', '#ffa9cc', '#8f9bff', 'Coucher de soleil sur les quais', 5], ['🎶', '#c4b0ff', '#ff9fc6', 'Avant le concert', 2]]
     .forEach(([e, a, b, caption, ago]) => add('photos', { fileId: pic(e, a, b), caption, date: addDays(t, -ago) }, ago % 2 ? G : M, ago * 24));
+  // calendrier de l'Avent : Morgane a déjà préparé 9 cases pour Mathis (fermées), Mathis en a fait 3
+  const Y = t.slice(0, 4);
+  [[1, 'mot', 'Le premier jour du compte à rebours. Je t\'aime 🎄'], [2, 'defi', 'Un chocolat chaud ensemble ce soir'], [3, 'bon', '', 'Un massage', '💆'], [5, 'mot', 'Plus que 19 jours !'], [8, 'defi', 'Envoie-moi ton plus vieux selfie'], [12, 'bon', '', 'Petit-déj au lit', '🍳'], [15, 'mot', 'Mon souvenir préféré de cette année : Biarritz sous la pluie.'], [20, 'defi', 'On danse sur une chanson de Noël'], [24, 'mot', 'Joyeux réveillon mon amour 🎅']]
+    .forEach(([d, kind, text, title, emoji]) => add('avent', { id: `${Y}-${pad(d)}_${G}`, year: +Y, day: d, to: M, kind, text, title: title || '', emoji: emoji || '' }, G, 30 - d));
+  [[1, 'mot', 'Premier jour de décembre, et toujours aussi fou de toi.'], [4, 'bon', '', 'Je fais la vaisselle une semaine', '🧽'], [6, 'defi', 'Choisis le resto de la semaine']]
+    .forEach(([d, kind, text, title, emoji]) => add('avent', { id: `${Y}-${pad(d)}_${M}`, year: +Y, day: d, to: G, kind, text, title: title || '', emoji: emoji || '' }, M, 10 - d));
   return { cols, files };
 };

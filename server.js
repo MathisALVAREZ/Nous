@@ -5,6 +5,7 @@ const Database = require('better-sqlite3');
 const argon2 = require('argon2');
 const webpush = require('web-push');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -25,7 +26,7 @@ const TILES = path.join(DATA, 'tiles'); // cache des fonds de carte
 fs.mkdirSync(FILES, { recursive: true }); fs.mkdirSync(TILES, { recursive: true });
 
 const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles',
-  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps'];
+  'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps', 'avent'];
 
 /* ---------- base ---------- */
 // Plusieurs couples dans une seule base : chaque donnée porte l'identifiant de son couple, et toute requête est filtrée dessus.
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS files(id TEXT PRIMARY KEY, name TEXT, mime TEXT, size
 CREATE TABLE IF NOT EXISTS subs(endpoint TEXT PRIMARY KEY, user TEXT NOT NULL, sub TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS invites(id TEXT PRIMARY KEY, kind TEXT NOT NULL, couple TEXT, note TEXT, created_by TEXT, created INTEGER, expires INTEGER, used_by TEXT, used_at INTEGER);
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE IF NOT EXISTS resets(id TEXT PRIMARY KEY, user TEXT NOT NULL, expires INTEGER NOT NULL);
 `);
 const getMeta = k => (db.prepare('SELECT v FROM meta WHERE k=?').get(k) || {}).v;
 const setMeta = (k, v) => db.prepare('INSERT INTO meta(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').run(k, String(v));
@@ -72,6 +74,8 @@ db.transaction(() => {
     if (a) db.prepare('UPDATE users SET admin=1 WHERE id=?').run(a.id);
   }
 })();
+if (!colsOf('users').includes('email')) db.exec('ALTER TABLE users ADD COLUMN email TEXT'); // adresse de récupération du mot de passe (facultative)
+if (!colsOf('couples').includes('delete_at')) db.exec('ALTER TABLE couples ADD COLUMN delete_at INTEGER'); // suppression demandée par le couple
 db.exec('CREATE INDEX IF NOT EXISTS files_couple ON files(couple); CREATE INDEX IF NOT EXISTS users_couple ON users(couple);');
 
 const revs = new Map(db.prepare('SELECT id, rev FROM couples').all().map(c => [c.id, c.rev]));
@@ -80,9 +84,11 @@ const bump = c => { const r = revOf(c) + 1; revs.set(c, r); db.prepare('UPDATE c
 
 const sha = s => crypto.createHash('sha256').update(s).digest('hex');
 const usersOf = c => db.prepare('SELECT id, name FROM users WHERE couple=? ORDER BY pos').all(c);
-const userById = id => db.prepare('SELECT id, name, couple, admin FROM users WHERE id=?').get(id);
+const userById = id => db.prepare('SELECT id, name, couple, admin, email FROM users WHERE id=?').get(id);
 const today = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d); // AAAA-MM-JJ
 const hourNow = () => +new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hour12: false }).format(new Date());
+const EMAIL_RE = /^[^\s@<>"',;]{1,64}@[a-z0-9.-]{1,190}\.[a-z]{2,24}$/i;
+const cleanEmail = s => String(s || '').trim().toLowerCase().slice(0, 254);
 const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 30);
 
 /* ---------- clés push ---------- */
@@ -225,6 +231,8 @@ app.post('/api/register', async (req, res) => {
   if (!LOGIN_RE.test(login)) return res.status(400).json({ error: 'Identifiant : 2 à 30 caractères, lettres minuscules, chiffres, points ou tirets.' });
   if (!name) return res.status(400).json({ error: 'Indique ton prénom.' });
   if (pwd.length < 10) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 10 caractères.' });
+  const email = cleanEmail(b.email);
+  if (email && !EMAIL_RE.test(email)) return res.status(400).json({ error: 'Adresse e-mail invalide.' });
   const hash = await argon2.hash(pwd, { type: argon2.argon2id });
   let out;
   try {
@@ -235,7 +243,7 @@ app.post('/api/register', async (req, res) => {
       let couple = i.couple, pos = 1;
       if (i.kind === 'couple') { couple = 'c' + crypto.randomBytes(6).toString('hex'); pos = 0; db.prepare('INSERT INTO couples(id,name,created,rev) VALUES(?,?,?,1)').run(couple, name, Date.now()); revs.set(couple, 1); }
       else db.prepare('UPDATE couples SET name=? WHERE id=?').run(usersOf(couple).map(u => u.name).concat(name).join(' & '), couple);
-      db.prepare('INSERT INTO users(id,name,hash,pos,couple,admin) VALUES(?,?,?,?,?,0)').run(login, name, hash, pos, couple);
+      db.prepare('INSERT INTO users(id,name,hash,pos,couple,admin,email) VALUES(?,?,?,?,?,0,?)').run(login, name, hash, pos, couple, email || null);
       db.prepare('UPDATE invites SET used_by=?, used_at=? WHERE id=?').run(login, Date.now(), i.id);
       bump(couple);
       return { couple, kind: i.kind };
@@ -268,11 +276,220 @@ app.post('/api/password', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+/* ---------- e-mails (mot de passe oublié) ---------- */
+// SMTP configuré dans .env (Brevo : smtp-relay.brevo.com, port 587). Sans configuration, la récupération par e-mail est désactivée.
+const APP_URL = (process.env.APP_URL || (process.env.DOMAIN ? 'https://' + process.env.DOMAIN : 'https://morgane.kratox.fr')).replace(/\/+$/, '');
+const MAIL_FROM = process.env.MAIL_FROM || '';
+const mailer = process.env.SMTP_HOST && MAIL_FROM ? nodemailer.createTransport({
+  host: process.env.SMTP_HOST, port: +process.env.SMTP_PORT || 587, secure: (+process.env.SMTP_PORT || 587) === 465,
+  auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS || '' } : undefined
+}) : null;
+const escH = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function mailHtml(title, lines, btn) {
+  return `<!DOCTYPE html><html lang="fr"><body style="margin:0;background:#e8edfb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0b1220">
+<div style="max-width:480px;margin:0 auto;padding:32px 18px"><div style="background:#ffffff;border-radius:24px;padding:28px 24px;box-shadow:0 10px 36px rgba(40,60,120,.13)">
+<div style="font-size:30px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(90deg,#0a7aff,#ff2d6f);-webkit-background-clip:text;background-clip:text;color:#0a7aff;-webkit-text-fill-color:transparent">Nous</div>
+<h1 style="font-size:20px;margin:18px 0 10px">${escH(title)}</h1>
+${lines.map(l => `<p style="font-size:15px;line-height:1.5;margin:0 0 12px;color:rgba(11,18,32,.75)">${escH(l)}</p>`).join('')}
+${btn ? `<p style="margin:22px 0 8px"><a href="${escH(btn[1])}" style="display:inline-block;background:#0a7aff;color:#fff;text-decoration:none;font-weight:650;padding:13px 22px;border-radius:999px">${escH(btn[0])}</a></p>
+<p style="font-size:12px;color:rgba(11,18,32,.45);word-break:break-all">${escH(btn[1])}</p>` : ''}
+</div><p style="font-size:12px;color:rgba(11,18,32,.45);text-align:center;margin-top:16px">Nous · l'app à deux</p></div></body></html>`;
+}
+async function sendMail(to, subject, title, lines, btn) {
+  if (!mailer) throw new Error('E-mail non configuré');
+  await mailer.sendMail({ from: MAIL_FROM, to, subject, text: [title, '', ...lines, btn ? '\n' + btn[0] + ' : ' + btn[1] : ''].join('\n'), html: mailHtml(title, lines, btn) });
+}
+app.post('/api/email', auth, async (req, res) => {
+  const email = cleanEmail((req.body || {}).email);
+  if (email && !EMAIL_RE.test(email)) return res.status(400).json({ error: 'Adresse e-mail invalide' });
+  db.prepare('UPDATE users SET email=? WHERE id=?').run(email || null, req.user.id);
+  let sent = false;
+  if (email && mailer) { try { await sendMail(email, 'Ton adresse est enregistrée sur Nous', `C'est noté, ${req.user.name} ✨`, ['Cette adresse servira uniquement à recevoir un lien si tu oublies ton mot de passe.', 'Si tu n\'es pas à l\'origine de ce changement, ignore ce message.']); sent = true; } catch (e) { console.error('[nous] e-mail :', e.message); } }
+  res.json({ ok: true, sent });
+});
+// Toujours la même réponse, qu'un compte existe ou non : on ne révèle pas qui utilise l'app.
+const FORGOT_OK = 'Si un compte correspond et qu\'il a une adresse e-mail, un lien vient d\'y être envoyé. Pense à regarder dans les spams.';
+app.post('/api/forgot', async (req, res) => {
+  const k = 'fg:' + req.ip;
+  if (blocked(k)) return res.status(429).json({ error: 'Trop de demandes. Réessaie dans 15 minutes.' });
+  fail(k); // 5 demandes par quart d'heure et par adresse IP
+  if (!mailer) return res.status(503).json({ error: 'La récupération par e-mail n\'est pas encore activée. Demande à l\'administrateur de réinitialiser ton mot de passe.' });
+  const who = String((req.body || {}).who || '').trim().toLowerCase().slice(0, 254);
+  if (!who) return res.status(400).json({ error: 'Indique ton identifiant ou ton adresse e-mail' });
+  const us = db.prepare('SELECT id, name, email FROM users WHERE (id=? OR email=?) AND email IS NOT NULL').all(who, who);
+  for (const u of us) {
+    if (!cooled('forgot:' + u.id, 5 * 60e3)) continue; // un e-mail toutes les 5 minutes au plus par compte
+    const code = crypto.randomBytes(24).toString('hex');
+    db.prepare('DELETE FROM resets WHERE user=? OR expires < ?').run(u.id, Date.now());
+    db.prepare('INSERT INTO resets(id,user,expires) VALUES(?,?,?)').run(sha(code), u.id, Date.now() + 3600e3);
+    sendMail(u.email, 'Nouveau mot de passe pour Nous', `Bonjour ${u.name},`, [`Tu as demandé à changer le mot de passe du compte « ${u.id} ».`, 'Le lien ci-dessous est valable une heure et ne sert qu\'une fois. Si tu n\'as rien demandé, ignore cet e-mail : ton mot de passe actuel reste valable.'], ['Choisir un nouveau mot de passe', `${APP_URL}/?reinit=${code}`])
+      .catch(e => console.error('[nous] e-mail :', e.message));
+  }
+  res.json({ ok: true, message: FORGOT_OK });
+});
+const findReset = code => { if (!/^[a-f0-9]{48}$/.test(String(code || ''))) return null; const r = db.prepare('SELECT * FROM resets WHERE id=?').get(sha(code)); return r && r.expires > Date.now() ? r : null; };
+app.get('/api/reset/:code', (req, res) => {
+  const k = 'ip:' + req.ip;
+  if (blocked(k)) return res.status(429).json({ error: 'Trop de tentatives. Réessaie dans 15 minutes.' });
+  const r = findReset(req.params.code);
+  if (!r) { fail(k); return res.status(404).json({ error: 'Ce lien a expiré ou a déjà servi. Refais une demande depuis l\'écran de connexion.' }); }
+  const u = userById(r.user); res.json({ name: u ? u.name : '', login: r.user });
+});
+app.post('/api/reset', async (req, res) => {
+  const k = 'ip:' + req.ip, b = req.body || {};
+  if (blocked(k)) return res.status(429).json({ error: 'Trop de tentatives. Réessaie dans 15 minutes.' });
+  const r = findReset(b.code);
+  if (!r) { fail(k); return res.status(404).json({ error: 'Ce lien a expiré ou a déjà servi. Refais une demande depuis l\'écran de connexion.' }); }
+  if (String(b.password || '').length < 10) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 10 caractères' });
+  db.prepare('UPDATE users SET hash=? WHERE id=?').run(await argon2.hash(String(b.password), { type: argon2.argon2id }), r.user);
+  db.prepare('DELETE FROM resets WHERE user=?').run(r.user);
+  db.prepare('DELETE FROM sessions WHERE user=?').run(r.user); // déconnecte tous les appareils
+  fails.delete('u:' + r.user);
+  openSession(res, r.user);
+  res.json({ ok: true });
+});
+
+/* ---------- export et suppression de son espace ---------- */
+// Zip sans compression écrit au fil de l'eau (les photos sont déjà compressées) : pas de fichier temporaire, mémoire constante.
+const CRC_T = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t; })();
+const crc32 = (buf, c = 0) => { c = ~c; for (let i = 0; i < buf.length; i++) c = CRC_T[(c ^ buf[i]) & 0xff] ^ (c >>> 8); return ~c >>> 0; };
+function zipWriter(out) {
+  const entries = []; let offset = 0;
+  const d = new Date(), dosT = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), dosD = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  const write = buf => new Promise((ok, ko) => { offset += buf.length; if (out.write(buf)) ok(); else { out.once('drain', ok); out.once('close', () => ko(new Error('closed'))); } });
+  return {
+    async add(name, source) { // source : Buffer, ou chemin d'un fichier lu par morceaux
+      const nb = Buffer.from(name, 'utf8'), start = offset;
+      const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(0x0808, 6); lh.writeUInt16LE(0, 8); lh.writeUInt16LE(dosT, 10); lh.writeUInt16LE(dosD, 12); lh.writeUInt16LE(nb.length, 26);
+      await write(lh); await write(nb);
+      let crc = 0, sz = 0;
+      if (Buffer.isBuffer(source)) { crc = crc32(source); sz = source.length; await write(source); }
+      else for await (const chunk of fs.createReadStream(source, { highWaterMark: 256 * 1024 })) { crc = crc32(chunk, crc); sz += chunk.length; await write(chunk); }
+      const dd = Buffer.alloc(16); dd.writeUInt32LE(0x08074b50, 0); dd.writeUInt32LE(crc, 4); dd.writeUInt32LE(sz, 8); dd.writeUInt32LE(sz, 12); await write(dd);
+      entries.push({ nb, crc, sz, start });
+    },
+    async end() {
+      const cdStart = offset;
+      for (const e of entries) {
+        const c = Buffer.alloc(46); c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x0808, 8); c.writeUInt16LE(0, 10); c.writeUInt16LE(dosT, 12); c.writeUInt16LE(dosD, 14);
+        c.writeUInt32LE(e.crc, 16); c.writeUInt32LE(e.sz, 20); c.writeUInt32LE(e.sz, 24); c.writeUInt16LE(e.nb.length, 28); c.writeUInt32LE(e.start, 42);
+        await write(c); await write(e.nb);
+      }
+      const z = Buffer.alloc(22); z.writeUInt32LE(0x06054b50, 0); z.writeUInt16LE(entries.length, 8); z.writeUInt16LE(entries.length, 10); z.writeUInt32LE(offset - cdStart, 12); z.writeUInt32LE(cdStart, 16);
+      await write(z); out.end();
+    }
+  };
+}
+const HEX32 = /\b[a-f0-9]{32}\b/g;
+// Ce que la personne voit dans l'app, et rien de plus : les contenus privés de l'autre (cycle, compteurs, mots programmés,
+// cases de l'Avent pas encore ouvertes, instant pas encore débloqué) ne sortent pas dans son export.
+function visibleData(c, me) {
+  const parsed = db.prepare('SELECT col, data FROM docs WHERE couple=?').all(c).map(r => [r.col, JSON.parse(r.data), r.data]);
+  const mine = new Set(parsed.filter(([k, d]) => k === 'answers' && d.user === me).map(([, d]) => d.date));
+  const hiddenT = new Set(parsed.filter(([k, d]) => k === 'trackers' && d.by !== me && (d.vis || 'private') === 'private').map(([, d]) => d.id));
+  const sharers = new Set(parsed.filter(([k, d]) => k === 'profiles' && d.shareCycle === true).map(([, d]) => d.id));
+  const mySnaps = new Set(parsed.filter(([k, d]) => k === 'snaps' && d.user === me).map(([, d]) => d.date));
+  const cols = {}, seen = new Set(), secret = new Set();
+  for (const [k, d, raw] of parsed) {
+    if (!COLS.includes(k)) continue;
+    const v = viewFor(k, d, me, mine, sharers, hiddenT, mySnaps);
+    if (!v || v.hidden || v.sealed) { for (const m of raw.match(HEX32) || []) secret.add(m); continue; }
+    (cols[k] = cols[k] || []).push(v);
+    for (const m of JSON.stringify(v).match(HEX32) || []) seen.add(m);
+  }
+  for (const id of seen) secret.delete(id);
+  return { cols, secret };
+}
+app.get('/api/export', auth, async (req, res) => {
+  if (!cooled('export:' + req.user.id, 60e3)) return res.status(429).json({ error: 'Un export par minute au maximum' });
+  const C = req.c, me = req.user.id, t = today();
+  const { cols, secret } = visibleData(C, me);
+  const files = db.prepare('SELECT * FROM files WHERE couple=? ORDER BY at').all(C).filter(f => /^[a-f0-9]{32}$/.test(f.id) && !secret.has(f.id) && fs.existsSync(path.join(FILES, f.id)));
+  const used = new Set(), map = {};
+  const safe = s => String(s || 'fichier').replace(/[\u0000-\u001f<>:"/\\|?*]+/g, '_').replace(/^\.+/, '').slice(0, 120) || 'fichier';
+  for (const f of files) {
+    let base = `fichiers/${today(new Date(f.at || Date.now()))} ${safe(f.name)}`, p = base, i = 2;
+    const dot = base.lastIndexOf('.');
+    while (used.has(p.toLowerCase())) p = dot > 8 ? `${base.slice(0, dot)} (${i++})${base.slice(dot)}` : `${base} (${i++})`;
+    used.add(p.toLowerCase()); map[f.id] = p;
+  }
+  const root = `Nous - export ${t}/`;
+  res.set({ 'Content-Type': 'application/zip', 'Content-Disposition': `attachment; filename="nous-export-${t}.zip"`, 'Cache-Control': 'no-store' });
+  const z = zipWriter(res);
+  try {
+    await z.add(root + 'LISEZ-MOI.txt', Buffer.from([
+      `Export de votre espace Nous, fait par ${req.user.name} le ${t}.`, '',
+      '- donnees.json : tout ce que tu vois dans l\'app (agenda, comptes, mots, listes, etc.), au format JSON.',
+      '- fichiers.json : à quel fichier du dossier « fichiers » correspond chaque identifiant cité dans donnees.json.',
+      '- fichiers/ : vos photos, documents et instants.', '',
+      'Les contenus encore privés de ton ou ta partenaire (suivi du cycle non partagé, compteurs privés, mots programmés,',
+      'cases du calendrier de l\'Avent pas encore ouvertes…) ne figurent pas dans cet export.'].join('\r\n'), 'utf8'));
+    await z.add(root + 'donnees.json', Buffer.from(JSON.stringify({ app: 'Nous', exportedAt: new Date().toISOString(), by: { id: me, name: req.user.name }, users: usersOf(C), collections: cols }, null, 2), 'utf8'));
+    await z.add(root + 'fichiers.json', Buffer.from(JSON.stringify(Object.fromEntries(files.map(f => [f.id, { path: map[f.id], name: f.name, mime: f.mime, size: f.size, by: f.by, at: f.at && new Date(f.at).toISOString() }])), null, 2), 'utf8'));
+    for (const f of files) await z.add(root + map[f.id], path.join(FILES, f.id));
+    await z.end();
+  } catch (e) { if (e.message !== 'closed') console.error('[nous] export :', e.message); res.destroy(); }
+});
+function deleteCouple(c) {
+  const files = db.prepare('SELECT id FROM files WHERE couple=?').all(c);
+  db.transaction(() => {
+    for (const u of usersOf(c)) for (const t of ['sessions', 'subs', 'resets']) db.prepare(`DELETE FROM ${t} WHERE user=?`).run(u.id);
+    for (const t of ['docs', 'files', 'users']) db.prepare(`DELETE FROM ${t} WHERE couple=?`).run(c);
+    db.prepare('DELETE FROM invites WHERE couple=?').run(c);
+    db.prepare('DELETE FROM couples WHERE id=?').run(c);
+    db.prepare('DELETE FROM meta WHERE k LIKE ? OR k LIKE ?').run(`snap:${c}:%`, `snapsent:${c}:%`);
+  })();
+  for (const f of files) if (/^[a-f0-9]{32}$/.test(f.id)) fs.unlink(path.join(FILES, f.id), () => {});
+  revs.delete(c);
+  console.log('[nous] Espace supprimé :', c);
+}
+const DELETE_DELAY = 72 * 3600e3; // à deux, la suppression attend 3 jours : chacun peut l'annuler
+const hasAdmin = c => !!db.prepare('SELECT 1 FROM users WHERE couple=? AND admin=1').get(c);
+app.post('/api/space/delete', auth, async (req, res) => {
+  const u = db.prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
+  let ok = false; try { ok = await argon2.verify(u.hash, String((req.body || {}).password || '')); } catch (e) { }
+  if (!ok) return res.status(400).json({ error: 'Mot de passe incorrect' });
+  if (hasAdmin(req.c)) return res.status(400).json({ error: 'L\'espace de l\'administrateur ne peut pas être supprimé depuis l\'app.' });
+  const others = usersOf(req.c).filter(x => x.id !== u.id);
+  if (!others.length) { deleteCouple(req.c); setSession(res, ''); return res.json({ ok: true, deleted: true }); }
+  const at = Date.now() + DELETE_DELAY;
+  db.prepare('UPDATE couples SET delete_at=? WHERE id=?').run(at, req.c); bump(req.c);
+  const when = new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(at));
+  for (const o of others) pushTo(o.id, { title: 'Nous ⚠️', body: `${u.name} a demandé la suppression de votre espace, prévue ${when}. Tu peux l'annuler dans Réglages.`, tag: 'suppression', url: '/#reglages' }).catch(() => {});
+  res.json({ ok: true, deleteAt: at });
+});
+app.post('/api/space/cancel', auth, (req, res) => {
+  db.prepare('UPDATE couples SET delete_at=NULL WHERE id=?').run(req.c); bump(req.c);
+  for (const o of usersOf(req.c)) if (o.id !== req.user.id) pushTo(o.id, { title: 'Nous 💗', body: `${req.user.name} a annulé la suppression de votre espace.`, tag: 'suppression', url: '/' }).catch(() => {});
+  res.json({ ok: true });
+});
+setInterval(() => { try { for (const { id } of db.prepare('SELECT id FROM couples WHERE delete_at IS NOT NULL AND delete_at < ?').all(Date.now())) if (!hasAdmin(id)) deleteCouple(id); } catch (e) { console.error(e); } }, 5 * 60e3);
+
+/* ---------- sauvegarde automatique de la base (chaque nuit vers 4 h, 14 jours gardés) ---------- */
+const BACKUPS = path.join(DATA, 'backups');
+async function nightlyBackup() {
+  const t = today();
+  if (hourNow() < 4 || getMeta('backup') === t) return;
+  setMeta('backup', t);
+  fs.mkdirSync(BACKUPS, { recursive: true });
+  await db.backup(path.join(BACKUPS, `nous-${t}.db`));
+  setMeta('backupAt', Date.now());
+  for (const f of fs.readdirSync(BACKUPS)) if (/^nous-\d{4}-\d{2}-\d{2}\.db$/.test(f) && f < `nous-${today(new Date(Date.now() - 14 * 864e5))}.db`) fs.unlinkSync(path.join(BACKUPS, f));
+  console.log('[nous] Sauvegarde de la base :', t);
+}
+setInterval(() => nightlyBackup().catch(e => console.error('[nous] sauvegarde :', e.message)), 10 * 60e3);
+setTimeout(() => nightlyBackup().catch(e => console.error('[nous] sauvegarde :', e.message)), 60e3);
+
 /* ---------- données ---------- */
+// Calendrier de l'Avent : la case n de l'année A s'ouvre le n décembre de A (heure de Paris).
+const AV_ID = /^(\d{4})-(\d{2})_([a-z0-9][a-z0-9.-]{1,29})$/;
+const aventDate = d => `${d.year}-12-${String(d.day).padStart(2, '0')}`;
+const AV_KINDS = ['mot', 'photo', 'bon', 'defi'];
 // Ce que chacun a le droit de voir : pas la réservation de ses propres envies, pas la réponse de l'autre avant d'avoir répondu.
 function viewFor(col, doc, me, mine, sharers, hiddenT, mySnaps) {
   // Instant du jour : la photo de l'autre reste cachée tant qu'on n'a pas posté la sienne ce jour-là
   if (col === 'snaps' && doc.user !== me && !(mySnaps && mySnaps.has(doc.date))) return { id: doc.id, date: doc.date, user: doc.user, by: doc.by, at: doc.at, when: doc.when, onTime: doc.onTime, hidden: true };
+  if (col === 'avent' && doc.by !== me && !doc.openedAt && aventDate(doc) > today()) return { id: doc.id, year: doc.year, day: doc.day, by: doc.by, at: doc.at, hidden: true }; // case de l'Avent : fermée jusqu'à son jour
   if (col === 'wishes' && doc.owner === me) { const d = { ...doc }; delete d.reservedBy; return d; }
   if (col === 'answers' && doc.user !== me && !mine.has(doc.date)) return { id: doc.id, date: doc.date, user: doc.user, by: doc.by, at: doc.at, hidden: true };
   if (col === 'scheduled' && doc.by !== me) return null;
@@ -296,7 +513,7 @@ app.get('/api/sync', auth, (req, res) => {
   const sharers = new Set(parsed.filter(([c, d]) => c === 'profiles' && d.shareCycle === true).map(([, d]) => d.id));
   const mySnaps = new Set(parsed.filter(([c, d]) => c === 'snaps' && d.user === me).map(([, d]) => d.date));
   for (const [c, d] of parsed) if (cols[c]) { const v = viewFor(c, d, me, mine, sharers, hiddenT, mySnaps); if (v) cols[c][d.id] = v; }
-  res.json({ rev, me: { id: me, name: req.user.name, admin: !!req.user.admin }, users: usersOf(req.c), cols, vapid: vapid.publicKey, today: today(), v: VERSION, cities: CITIES, snapAt });
+  res.json({ rev, me: { id: me, name: req.user.name, admin: !!req.user.admin, email: req.user.email || '' }, users: usersOf(req.c), cols, vapid: vapid.publicKey, today: today(), v: VERSION, cities: CITIES, snapAt, mail: !!mailer, adminSpace: hasAdmin(req.c), deleteAt: (db.prepare('SELECT delete_at d FROM couples WHERE id=?').get(req.c) || {}).d || null });
 });
 
 const lastPing = new Map();
@@ -396,6 +613,29 @@ app.put('/api/c/:col/:id', auth, (req, res) => {
       Object.assign(doc, prev, { at: Date.now(), reactions });
     }
   }
+  if (col === 'avent') { // chacun prépare ses cases pour l'autre ; l'autre ne peut que les ouvrir, le jour venu
+    const m = AV_ID.exec(id), day = m ? +m[2] : 0, year = m ? +m[1] : 0;
+    if (!m || day < 1 || day > 24 || year < 2026 || year > +today().slice(0, 4) + 1) return res.status(400).json({ error: 'Case inconnue' });
+    if (!prev) {
+      if (m[3] !== req.user.id) return res.status(403).json({ error: 'Pas ta case' });
+    } else if (prev.by !== req.user.id) {
+      if (aventDate(prev) > today()) return res.status(403).json({ error: 'Patience, cette case n\'est pas encore ouvrable 🎄' });
+      for (const k of Object.keys(doc)) delete doc[k];
+      Object.assign(doc, prev, { at: Date.now(), openedAt: prev.openedAt || Date.now() });
+      if (!prev.openedAt && prev.kind === 'bon' && prev.title) // le bon de la case rejoint les bons reçus
+        saveDoc(C, 'coupons', { id: 'av' + crypto.randomBytes(6).toString('hex'), title: prev.title, emoji: prev.emoji || '🎟️', from: prev.by, to: req.user.id, by: prev.by, at: Date.now(), avent: day });
+      saveDoc(C, col, doc);
+      const rev2 = bump(C);
+      if (!prev.openedAt) pushTo(prev.by, { title: '🎄 Calendrier de l\'Avent', body: `${req.user.name} a ouvert ta case du ${day} décembre`, tag: 'avent', url: '/#avent' }).catch(() => {});
+      return res.json({ ok: true, rev: rev2 });
+    } else if (prev.openedAt) return res.status(409).json({ error: 'Cette case a déjà été ouverte' });
+    const kind = AV_KINDS.includes(doc.kind) ? doc.kind : 'mot';
+    const fileId = kind === 'photo' && /^[a-f0-9]{32}$/.test(String(doc.fileId || '')) && db.prepare('SELECT 1 FROM files WHERE id=? AND couple=?').get(doc.fileId, C) ? doc.fileId : null;
+    if (kind === 'photo' && !fileId) return res.status(400).json({ error: 'Photo introuvable' });
+    const to = (usersOf(C).find(u => u.id !== req.user.id) || {}).id || null;
+    for (const k of Object.keys(doc)) if (!['id', 'by', 'at'].includes(k)) delete doc[k];
+    Object.assign(doc, { year, day, kind, to, text: String((req.body || {}).text || '').slice(0, 1000), title: String((req.body || {}).title || '').slice(0, 90), emoji: String((req.body || {}).emoji || '').slice(0, 8), fileId });
+  }
   if (col === 'poops') { // une position et une note valides, rien d'autre
     const lat = +doc.lat, lng = +doc.lng;
     if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) return res.status(400).json({ error: 'Position invalide' });
@@ -427,7 +667,7 @@ app.delete('/api/c/:col/:id', auth, (req, res) => {
   const { col, id } = req.params;
   if (!COLS.includes(col)) return res.status(400).json({ error: 'Collection inconnue' });
   const C = req.c;
-  if (['scheduled', 'cycles', 'trackers', 'tlogs', 'capsules', 'pokes', 'moods', 'answers', 'poops', 'snaps'].includes(col)) { const p = getDoc(C, col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); }
+  if (['scheduled', 'cycles', 'trackers', 'tlogs', 'capsules', 'pokes', 'moods', 'answers', 'poops', 'snaps', 'avent'].includes(col)) { const p = getDoc(C, col, id); if (p && p.by !== req.user.id) return res.status(403).json({ error: 'Pas à toi' }); if (p && col === 'avent' && p.openedAt) return res.status(409).json({ error: 'Cette case a déjà été ouverte' }); }
   if (col === 'trackers') for (const l of allDocs(C, 'tlogs')) if (l.tracker === id) delDoc(C, 'tlogs', l.id);
   delDoc(C, col, id);
   res.json({ ok: true, rev: bump(C) });
@@ -529,6 +769,18 @@ async function dailyFor(c, t) {
   if (new Date(t + 'T12:00:00Z').getUTCDay() === 1 && QUESTIONS.defis) { const L = QUESTIONS.defis, k = Math.floor((Date.parse(t) - Date.parse('2026-01-05')) / (7 * 864e5)); await all({ title: 'Défi de la semaine 🏅', body: L[((k % L.length) + L.length) % L.length], tag: 'defi', url: '/#defi' }); }
   if (t.slice(8) === '01') await all({ title: 'Votre bilan du mois est prêt 📅', body: 'Jours ensemble, mots échangés, photos : le récap vous attend.', tag: 'bilan', url: '/#bilan' });
   for (const c of allDocs2('countdowns')) if (c.date === t) await all({ title: 'C\'est aujourd\'hui ! 🎉', body: c.title, tag: 'cd-' + c.id, url: '/#rebours' });
+  // Calendrier de l'Avent : la case du jour du 1er au 24 décembre, et deux rappels pour finir de le remplir fin novembre
+  if (us.length === 2) {
+    const Y = t.slice(0, 4), mo = t.slice(5, 7), dd = +t.slice(8);
+    for (const u of us) {
+      const o = us.find(x => x.id !== u.id);
+      if (mo === '12' && dd <= 24 && getDoc2('avent', `${Y}-${t.slice(8)}_${o.id}`)) await pushTo(u.id, { title: `🎄 Case du ${dd} décembre`, body: `${o.name} t'a préparé une surprise. Viens l'ouvrir !`, tag: 'avent', url: '/#avent' }).catch(() => {});
+      if (mo === '11' && (dd === 24 || dd === 30)) {
+        const n = allDocs2('avent').filter(a => a.by === u.id && String(a.year) === Y).length;
+        if (n < 24) await pushTo(u.id, { title: '🎄 Calendrier de l\'Avent', body: `${n ? n + ' case' + (n > 1 ? 's' : '') + ' prête' + (n > 1 ? 's' : '') + ' sur 24' : 'Aucune case prête'} pour ${o.name}. Ça s'ouvre le 1er décembre !`, tag: 'avent', url: '/#avent' }).catch(() => {});
+      }
+    }
+  }
 }
 setInterval(() => daily().catch(e => console.error(e)), 5 * 60e3);
 
@@ -599,10 +851,11 @@ app.get('/api/admin', auth, adminOnly, (req, res) => {
     users: usersOf(c.id),
     items: db.prepare('SELECT COUNT(*) n FROM docs WHERE couple=?').get(c.id).n,
     bytes: db.prepare('SELECT COALESCE(SUM(size),0) s FROM files WHERE couple=?').get(c.id).s,
-    lastSeen: db.prepare('SELECT MAX(at) a FROM docs WHERE couple=?').get(c.id).a || c.created
+    lastSeen: db.prepare('SELECT MAX(at) a FROM docs WHERE couple=?').get(c.id).a || c.created,
+    deleteAt: (db.prepare('SELECT delete_at d FROM couples WHERE id=?').get(c.id) || {}).d || null
   }));
   const invites = db.prepare("SELECT id, note, created, expires FROM invites WHERE kind='couple' AND used_at IS NULL AND expires > ? ORDER BY created DESC").all(Date.now()).map(i => ({ ...i, id: i.id.slice(0, 16) }));
-  res.json({ couples, invites, quota: QUOTA });
+  res.json({ couples, invites, quota: QUOTA, backupAt: +getMeta('backupAt') || null, mail: !!mailer });
 });
 app.post('/api/admin/invite', auth, adminOnly, (req, res) => res.json({ code: createInvite('couple', null, req.user.id, (req.body || {}).note, 14), days: 14 }));
 app.delete('/api/admin/invite/:id', auth, adminOnly, (req, res) => {
@@ -634,15 +887,7 @@ app.post('/api/admin/delete-couple', auth, adminOnly, (req, res) => {
   const c = String((req.body || {}).couple || '');
   if (c === req.c) return res.status(400).json({ error: 'Tu ne peux pas supprimer ton propre espace d\'ici.' });
   if (!db.prepare('SELECT 1 FROM couples WHERE id=?').get(c)) return res.status(404).json({ error: 'Espace introuvable' });
-  const files = db.prepare('SELECT id FROM files WHERE couple=?').all(c);
-  db.transaction(() => {
-    for (const u of usersOf(c)) { db.prepare('DELETE FROM sessions WHERE user=?').run(u.id); db.prepare('DELETE FROM subs WHERE user=?').run(u.id); }
-    for (const t of ['docs', 'files', 'users']) db.prepare(`DELETE FROM ${t} WHERE couple=?`).run(c);
-    db.prepare('DELETE FROM invites WHERE couple=?').run(c);
-    db.prepare('DELETE FROM couples WHERE id=?').run(c);
-  })();
-  for (const f of files) if (/^[a-f0-9]{32}$/.test(f.id)) fs.unlink(path.join(FILES, f.id), () => {});
-  revs.delete(c);
+  deleteCouple(c);
   res.json({ ok: true });
 });
 

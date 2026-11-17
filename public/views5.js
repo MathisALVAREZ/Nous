@@ -31,6 +31,7 @@ VIEWS.admin = () => {
       h('div', { class: 'center' }, h('div', { class: 'big num' }, A.couples.reduce((s, c) => s + c.users.length, 0)), h('div', { class: 'tiny muted' }, 'comptes')),
       h('div', { class: 'center' }, h('div', { class: 'big num' }, size(total)), h('div', { class: 'tiny muted' }, 'de fichiers')))),
     h('button', { class: 'btn pri full', onclick: invite }, 'Inviter un couple'),
+    h('p', { class: 'small faint center' }, (A.backupAt ? `Dernière sauvegarde automatique : ${fmtT(A.backupAt)}` : 'Pas encore de sauvegarde automatique (elle se fait chaque nuit vers 4 h)') + (A.mail ? ' · e-mails activés' : ' · e-mails non configurés')),
     sec(eyebrow('Notification à tout le monde'),
       h('p', { class: 'small muted' }, 'Envoyée sur le téléphone de tous les comptes, tous espaces confondus, s\'ils ont activé les notifications.'),
       h('button', { class: 'btn full', onclick: () => formSheet({

@@ -7,4 +7,5 @@ INSTANCE="$(grep -E '^INSTANCE=' .env 2>/dev/null | cut -d= -f2- || true)"; INST
 mkdir -p backups
 docker exec "$INSTANCE" node -e "require('better-sqlite3')('/data/nous.db').backup('/data/nous-backup.db').then(()=>process.exit(0))"
 tar -czf "backups/nous-$(date +%F).tar.gz" -C data nous-backup.db files
+rm -f data/nous-backup.db
 find backups -name 'nous-*.tar.gz' -mtime +14 -delete

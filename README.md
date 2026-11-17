@@ -49,7 +49,20 @@ le dossier `../nous-lea-tom`, branche la copie sur Traefik et affiche les identi
 
 Mettre à jour toutes les copies d'un coup : `bash deploy/maj-tous.sh`.
 
-Sauvegarde : ajouter `deploy/backup.sh` au cron (voir l'en-tête du script).
+Sauvegarde : l'app copie sa base chaque nuit dans `data/backups` (14 jours). Pour une sauvegarde complète avec les photos
+et documents dans `./backups`, lancer une fois `bash deploy/cron.sh`.
+
+## Mot de passe oublié par e-mail
+
+Renseigner `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` et `APP_URL` dans `.env` (voir `.env.example`, Brevo
+conseillé), puis `docker compose up -d --build`. Chacun ajoute son adresse dans Réglages ; l'écran de connexion propose alors
+« Mot de passe oublié ? » (lien valable une heure, à usage unique). Sans configuration, l'administrateur réinitialise à la main.
+
+## Export et suppression
+
+Réglages → Nos données : export zip (données JSON + fichiers, sans les contenus encore privés de l'autre) et suppression de
+l'espace (immédiate si la personne est seule, sinon au bout de 3 jours, annulable par chacun). L'espace de l'administrateur
+ne peut pas être supprimé depuis l'app.
 Mise à jour : remplacer les fichiers puis `docker compose up -d --build`.
 
 ## Mises à jour : la fenêtre « Quoi de neuf »

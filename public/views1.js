@@ -87,6 +87,7 @@ VIEWS.home = () => {
           : tg.in === 0 ? `Ensemble à ${tg.place}${tg.end > t ? ' jusqu\'à ' + fmtD(tg.end, { weekday: 'long', day: 'numeric', month: 'long' }) : ' aujourd\'hui'}`
             : `Retrouvailles à ${tg.place}, ${fmtD(tg.date, { weekday: 'long', day: 'numeric', month: 'long' })}`))),
     snapCard(),
+    aventCard(),
     pokeCard(),
     todayCard(),
     moodCard(),

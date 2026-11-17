@@ -244,6 +244,35 @@ async function checkPush() {
   if (S.demo || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); const on = !!sub && Notification.permission === 'granted'; if (on !== !!S.pushOn) { S.pushOn = on; if (S.view === 'reglages') render(); } } catch (e) { }
 }
+/* ----- nos données : export et suppression de l'espace ----- */
+function exportSpace() {
+  if (S.demo) return toast('Sur morgane.kratox.fr, tu récupères un zip avec toutes vos données et vos fichiers');
+  toast('Préparation de l\'export… ça peut prendre une minute avec beaucoup de photos');
+  const a = h('a', { href: '/api/export', download: '' }); D.body.append(a); a.click(); a.remove();
+}
+function deleteSpaceSheet() {
+  if (S.demo) return toast('En démo, rien n\'est supprimé');
+  const alone = S.users.length < 2, o = other();
+  formSheet({
+    title: 'Supprimer notre espace', submit: alone ? 'Supprimer définitivement' : 'Demander la suppression',
+    fields: [{ k: 'password', label: 'Ton mot de passe, pour confirmer', type: 'password', auto: 'current-password', required: true, hint: alone ? 'Ton compte et tout ce qu\'il contient seront effacés immédiatement. Pense à exporter vos données avant.' : `Vos deux comptes et tout le contenu de l'espace seront effacés au bout de 3 jours, le temps que ${o.name} soit prévenu et puisse annuler. Pense à exporter vos données avant.` }],
+    onSubmit: async v => {
+      if (!(await confirmSheet('Tu es sûr ?', alone ? 'Ton compte et toutes les données de l\'espace seront effacés tout de suite.' : `Dans 3 jours, vos deux comptes et toutes vos données (photos, documents, mots…) seront effacés. ${o.name} est prévenu et chacun peut annuler d'ici là.`, alone ? 'Supprimer' : 'Programmer la suppression', true))) return false;
+      const r = await api('POST', '/api/space/delete', { password: v.password });
+      if (r.deleted) { S.me = null; showLogin(); toast('Espace supprimé. Au revoir 👋'); return; }
+      S.deleteAt = r.deleteAt; render(true); toast(`${o.name} est prévenu`);
+    }
+  });
+}
+function deletionBanner() {
+  if (!S.deleteAt) return null;
+  const when = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(S.deleteAt));
+  return h('section', { class: 'glass card', style: { borderColor: 'var(--bad)' } },
+    h('div', { class: 'b bad' }, '⚠️ Suppression de l\'espace programmée'),
+    h('p', { class: 'small muted' }, `Toutes vos données seront effacées ${when}. Exportez-les avant si vous voulez les garder.`),
+    h('button', { class: 'btn pri full', onclick: async () => { try { await api('POST', '/api/space/cancel', {}); S.deleteAt = null; render(true); toast('Suppression annulée 💗'); } catch (e) { toast(e.message); } } }, 'Annuler la suppression'),
+    h('button', { class: 'btn full', onclick: exportSpace }, '📦 Exporter nos données'));
+}
 VIEWS.reglages = () => {
   const me = S.me, pr = profile(me.id), cp = couple();
   const setP = patch => put('profiles', { ...pr, id: me.id, ...patch });
@@ -252,6 +281,7 @@ VIEWS.reglages = () => {
   const sw = (on, fn, label) => h('button', { class: 'chip' + (on ? ' on' : ''), role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: fn }, on ? 'Activé' : 'Désactivé');
   return [
     head('Réglages', { back: 'plus' }),
+    deletionBanner(),
     sec(h('div', { class: 'row' }, avatar(me.id), h('div', { class: 'grow' }, h('div', { class: 'mid' }, me.name), h('div', { class: 'small muted' }, 'Connecté sur cet appareil'))),
       h('div', { class: 'f' }, h('label', { htmlFor: 's_home' }, 'Ma ville habituelle'), h('select', { class: 'inp', id: 's_home', onchange: e => setP({ home: e.target.value }) }, [['', 'Non précisée'], ...PLACES.map(p => [p[0], p[0]])].map(([v, l]) => h('option', { value: v, selected: (pr.home || '') === v }, l))), h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, 'Utilisée les jours où tu n\'as rien indiqué dans l\'agenda.'))),
     sec(eyebrow('Notifications'),
@@ -262,6 +292,14 @@ VIEWS.reglages = () => {
       h('div', { class: 'f' }, h('label', { htmlFor: 's_bud' }, 'Budget logement maximum, charges comprises (€)'), h('input', { class: 'inp', id: 's_bud', type: 'number', inputMode: 'numeric', value: cp.budget == null ? '' : cp.budget, onchange: e => setC({ budget: +e.target.value || 0 }) })),
       h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Répartition par défaut des dépenses'), h('div', { class: 'seg' }, [['half', 'Moitié-moitié'], ['pct', 'Au prorata']].map(([k, l]) => h('button', { class: (cp.defaultSplit || 'half') === k ? 'on' : '', onclick: () => setC({ defaultSplit: k }) }, l)))),
       cp.defaultSplit === 'pct' && h('div', { class: 'f' }, h('label', { htmlFor: 's_pct' }, `Part de ${S.users[0].name} (%)`), h('input', { class: 'inp', id: 's_pct', type: 'number', min: 0, max: 100, value: cp.pct == null ? 50 : cp.pct, onchange: e => setC({ pct: Math.max(0, Math.min(100, +e.target.value || 0)) }) }))),
+    !S.demo && sec(eyebrow('Mot de passe oublié'),
+      h('p', { class: 'small muted' }, S.mail ? 'Avec une adresse e-mail, tu peux recevoir un lien pour choisir un nouveau mot de passe depuis l\'écran de connexion.' : 'Ton adresse servira à recevoir un lien si tu oublies ton mot de passe (l\'envoi d\'e-mails n\'est pas encore activé sur ce serveur).'),
+      h('div', { class: 'f' }, h('label', { htmlFor: 's_mail' }, 'Mon adresse e-mail'), h('input', { class: 'inp', id: 's_mail', type: 'email', autocomplete: 'email', autocapitalize: 'none', placeholder: 'prenom@exemple.fr', value: me.email || '' })),
+      h('button', { class: 'btn full', onclick: async () => { const e = $('#s_mail').value.trim(); try { const r = await api('POST', '/api/email', { email: e }); S.me.email = e.toLowerCase(); toast(!e ? 'Adresse retirée' : r.sent ? 'Adresse enregistrée, un e-mail de confirmation est parti 📬' : 'Adresse enregistrée'); } catch (x) { toast(x.message); } } }, 'Enregistrer l\'adresse')),
+    sec(eyebrow('Nos données'),
+      h('p', { class: 'small muted' }, 'Récupère tout ce que tu vois dans l\'app (agenda, comptes, mots, photos, documents…) dans un fichier zip, à garder ou à ouvrir sur un ordinateur.'),
+      h('button', { class: 'btn full', onclick: exportSpace }, '📦 Exporter nos données'),
+      !S.adminSpace && !S.deleteAt && h('button', { class: 'btn danger full', onclick: deleteSpaceSheet }, 'Supprimer notre espace')),
     S.me.admin && !S.demo ? h('button', { class: 'glass card tap', onclick: () => go('admin') }, h('div', { class: 'row' }, h('span', { class: 'emo' }, '🛡️'), h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Administration'), h('div', { class: 'small muted' }, 'Inviter des couples, gérer les comptes')), icon('next'))) : null,
     sec(eyebrow('Application'),
       h('button', { class: 'btn full', onclick: () => newsSheet(window.NOUS_NEWS || [], false) }, '✨ Nouveautés'),

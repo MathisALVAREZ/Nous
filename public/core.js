@@ -2,7 +2,7 @@
 /* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
 const D = document;
 const $ = (s, r = D) => r.querySelector(s);
-const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps'];
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps', 'avent'];
 const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
 let B = null; // stockage actif
 const VIEWS = {};
@@ -84,7 +84,7 @@ function checkVersion(v) {
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
 }
 function applySync(j) {
-  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; S.snapAt = j.snapAt || null;
+  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; S.snapAt = j.snapAt || null; S.mail = !!j.mail; S.adminSpace = !!j.adminSpace; S.deleteAt = j.deleteAt || null;
   const own = ((j.cols.profiles || {})._couple || {}).cities; // les villes choisies par le couple, sinon celles par défaut du serveur
   if (typeof setCities === 'function') setCities(own && own.length ? own : j.cities);
 }
@@ -124,6 +124,7 @@ const Demo = {
         if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
         if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
         if (c === 'scheduled' && d.by !== me) continue;
+        if (c === 'avent' && d.by !== me && `${d.year}-12-${pad(d.day)}` > iso(new Date())) v = { id: d.id, year: d.year, day: d.day, by: d.by, hidden: true }; // case de l'Avent encore fermée
         if (c === 'snaps' && d.user !== me && !mySnaps.has(d.date)) v = { id: d.id, date: d.date, user: d.user, when: d.when, onTime: d.onTime, hidden: true };
         if (c === 'quiz' && d.about !== me && !d.guess) { v = { ...d }; delete v.answer; } // la réponse reste cachée tant qu'on n'a pas deviné
         if (c === 'capsules' && d.by !== me && d.openAt > iso(new Date())) { v = { ...d, sealed: true }; delete v.text; }
@@ -158,6 +159,7 @@ const Demo = {
     if (col === 'wishes' && prev && prev.owner === S.me.id) { if (prev.reservedBy) d.reservedBy = prev.reservedBy; else delete d.reservedBy; }
     if (col === 'quiz' && prev && S.me.id !== prev.about) d.answer = prev.answer;
     if (col === 'capsules' && prev) { d.text = prev.text; delete d.sealed; }
+    if (col === 'avent' && prev && prev.by !== S.me.id) { Object.assign(d, prev, { openedAt: prev.openedAt || Date.now() }); if (!prev.openedAt && prev.kind === 'bon') { const cid = 'av' + uid(); this.raw.coupons[cid] = { id: cid, title: prev.title, emoji: prev.emoji || '🎟️', from: prev.by, to: S.me.id, by: prev.by, at: Date.now(), avent: prev.day }; } }
     this.raw[col][doc.id] = d; this.save(); this.view();
   },
   async del(col, id) { delete this.raw[col][id]; this.save(); this.view(); },
@@ -371,6 +373,7 @@ function showLogin() {
     h('div', { class: 'f' }, h('label', { htmlFor: 'l_pwd' }, 'Mot de passe'), h('input', { class: 'inp', id: 'l_pwd', type: 'password', autocomplete: 'current-password', value: v.password, oninput: e => v.password = e.target.value })),
     err,
     h('button', { class: 'btn pri full', type: 'submit' }, 'Se connecter'),
+    !S.demo && h('button', { class: 'btn full', type: 'button', onclick: () => forgotSheet(v.login) }, 'Mot de passe oublié ?'),
     S.demo ? h('p', { class: 'small faint center' }, 'Version de démonstration : identifiant « mathis » ou « morgane », mot de passe libre. Les données restent sur cet appareil.')
       : h('p', { class: 'small faint center' }, 'Pas encore de compte ? L\'inscription se fait avec un lien d\'invitation.'));
   $('#app').replaceChildren(form);
@@ -382,7 +385,7 @@ async function showRegister(code) {
   let info;
   try { info = await api('GET', '/api/invite/' + encodeURIComponent(code)); }
   catch (e) { try { history.replaceState(null, '', '/'); } catch (x) { } showLogin(); const p = $('.login .bad'); if (p) p.textContent = e.message; return; }
-  const v = { name: '', login: '', password: '', confirm: '' }, err = h('p', { class: 'small bad', role: 'alert' });
+  const v = { name: '', login: '', email: '', password: '', confirm: '' }, err = h('p', { class: 'small bad', role: 'alert' });
   const field = (k, label, attrs, hint) => h('div', { class: 'f' }, h('label', { htmlFor: 'r_' + k }, label), h('input', { class: 'inp', id: 'r_' + k, ...attrs, oninput: e => { v[k] = e.target.value; if (k === 'name' && !v.loginTouched) { v.login = suggestLogin(v.name); $('#r_login').value = v.login; } if (k === 'login') v.loginTouched = true; } }), hint && h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, hint));
   const form = h('form', {
     class: 'glass card login', onsubmit: async e => {
@@ -390,7 +393,7 @@ async function showRegister(code) {
       if (v.password !== v.confirm) { err.textContent = 'Les deux mots de passe ne sont pas identiques.'; return; }
       const btn = $('button[type=submit]', form); btn.disabled = true;
       try {
-        await api('POST', '/api/register', { code, name: v.name, login: v.login, password: v.password });
+        await api('POST', '/api/register', { code, name: v.name, login: v.login, email: v.email, password: v.password });
         try { history.replaceState(null, '', '/'); } catch (x) { }
         if (await B.boot()) route();
       } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
@@ -401,9 +404,53 @@ async function showRegister(code) {
     h('p', { class: 'small muted' }, info.kind === 'partner' ? 'Crée ton compte : vous retrouverez tout ensemble, agenda, comptes, petits mots.' : 'Crée ton compte. Tu recevras ensuite un lien à envoyer à ta moitié pour qu\'elle te rejoigne.'),
     field('name', 'Ton prénom', { autocomplete: 'given-name', maxLength: 30, required: true }),
     field('login', 'Identifiant de connexion', { autocomplete: 'username', autocapitalize: 'none', maxLength: 30, required: true }, 'Lettres minuscules, chiffres, points ou tirets.'),
+    field('email', 'Adresse e-mail (facultatif)', { type: 'email', autocomplete: 'email', autocapitalize: 'none', maxLength: 254 }, 'Seulement pour recevoir un lien si tu oublies ton mot de passe.'),
     field('password', 'Mot de passe', { type: 'password', autocomplete: 'new-password', minLength: 10, required: true }, '10 caractères minimum.'),
     field('confirm', 'Confirme le mot de passe', { type: 'password', autocomplete: 'new-password', required: true }),
     err, h('button', { class: 'btn pri full', type: 'submit' }, 'Créer mon compte'));
+  $('#app').replaceChildren(form);
+}
+/* ----- mot de passe oublié : lien envoyé par e-mail, puis écran de nouveau mot de passe ----- */
+function forgotSheet(login) {
+  const v = { who: login || '' };
+  openSheet('Mot de passe oublié', c => [
+    h('p', { class: 'small muted' }, 'Indique ton identifiant ou ton adresse e-mail. Si ton compte a une adresse enregistrée, tu reçois un lien pour choisir un nouveau mot de passe.'),
+    h('div', { class: 'f' }, h('label', { htmlFor: 'fg_who' }, 'Identifiant ou e-mail'), h('input', { class: 'inp', id: 'fg_who', autocomplete: 'username', autocapitalize: 'none', value: v.who, oninput: e => v.who = e.target.value })),
+    h('button', { class: 'btn pri full', onclick: async e => {
+      if (!v.who.trim()) return toast('Indique ton identifiant ou ton e-mail');
+      e.target.disabled = true;
+      try { const r = await api('POST', '/api/forgot', { who: v.who.trim() }); c.close(); openSheet('Regarde tes e-mails 📬', d => [h('p', { class: 'muted' }, r.message), h('button', { class: 'btn pri full', onclick: () => d.close() }, 'OK')]); }
+      catch (ex) { e.target.disabled = false; toast(ex.message); }
+    } }, 'Recevoir le lien'),
+    h('p', { class: 'small faint center' }, 'Pas d\'adresse enregistrée ? Demande à l\'administrateur de réinitialiser ton mot de passe.')
+  ]);
+}
+async function showReset(code) {
+  $('#tabs').hidden = true;
+  let info;
+  try { info = await api('GET', '/api/reset/' + encodeURIComponent(code)); }
+  catch (e) { try { history.replaceState(null, '', '/'); } catch (x) { } showLogin(); const p = $('.login .bad'); if (p) p.textContent = e.message; return; }
+  const v = { password: '', confirm: '' }, err = h('p', { class: 'small bad', role: 'alert' });
+  const field = (k, label) => h('div', { class: 'f' }, h('label', { htmlFor: 'rs_' + k }, label), h('input', { class: 'inp', id: 'rs_' + k, type: 'password', autocomplete: 'new-password', minLength: 10, required: true, oninput: e => v[k] = e.target.value }));
+  const form = h('form', {
+    class: 'glass card login', onsubmit: async e => {
+      e.preventDefault(); err.textContent = '';
+      if (v.password !== v.confirm) { err.textContent = 'Les deux mots de passe ne sont pas identiques.'; return; }
+      const btn = $('button[type=submit]', form); btn.disabled = true;
+      try {
+        await api('POST', '/api/reset', { code, password: v.password });
+        try { history.replaceState(null, '', '/'); } catch (x) { }
+        toast('Mot de passe changé ✓');
+        if (await B.boot()) route(); else showLogin();
+      } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+    }
+  },
+    h('div', { class: 'logo' }, 'Nous'),
+    h('p', { class: 'mid' }, `Nouveau mot de passe${info.name ? ', ' + info.name : ''}`),
+    h('p', { class: 'small muted' }, `Pour le compte « ${info.login} ». Tes autres appareils seront déconnectés.`),
+    h('input', { type: 'text', autocomplete: 'username', value: info.login, hidden: true, readOnly: true }),
+    field('password', 'Nouveau mot de passe (10 caractères minimum)'), field('confirm', 'Confirme le mot de passe'),
+    err, h('button', { class: 'btn pri full', type: 'submit' }, 'Enregistrer'));
   $('#app').replaceChildren(form);
 }
 const suggestLogin = n => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9.-]+/g, '').slice(0, 30);
@@ -477,7 +524,8 @@ function enter() {
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; });
 async function start() {
   S.demo = !!window.NOUS_DEMO; B = S.demo ? Demo : Remote;
-  let code = null; try { code = new URLSearchParams(location.search).get('invitation'); } catch (e) { }
+  let code = null, reinit = null; try { const q = new URLSearchParams(location.search); code = q.get('invitation'); reinit = q.get('reinit'); } catch (e) { }
+  if (reinit && !S.demo) return showReset(reinit);
   if (code && !S.demo) { if (await B.boot()) { try { history.replaceState(null, '', '/'); } catch (e) { } route(); } else showRegister(code); return; }
   if (await B.boot()) route(); else showLogin();
 }

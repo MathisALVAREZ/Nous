@@ -984,6 +984,23 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
 #toast.in { transform: translate(-50%, 0); }
 .demo-flag { align-self: center; font-size: 12px; font-weight: 650; padding: 4px 12px; border-radius: 999px; background: var(--glass); border: 1px solid var(--edge); color: var(--ink2); }
 
+/* calendrier de l'Avent */
+.avgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.avc { position: relative; aspect-ratio: .92; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--glass); -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%); border: 1px solid var(--edge); box-shadow: var(--shadow), inset 0 1px 0 var(--spec); transition: transform .16s; }
+.avc:active { transform: scale(.93); }
+.avc .n { position: absolute; top: 7px; left: 10px; font: 800 15px/1 var(--display); color: var(--ink2); }
+.avc .e { font-size: 26px; line-height: 1; margin-top: 8px; }
+.avc.locked .e, .avc.empty .e { opacity: .45; font-size: 20px; }
+.avc.empty { opacity: .6; }
+.avc.full { border: 1.5px dashed color-mix(in srgb, var(--u1) 55%, transparent); }
+.avc.full .e, .avc.opened .e { opacity: 1; }
+.avc.opened { background: color-mix(in srgb, var(--good) 12%, var(--glass)); }
+.avc.ready { background: linear-gradient(150deg, color-mix(in srgb, var(--u1) 30%, var(--glass)), color-mix(in srgb, var(--u0) 26%, var(--glass))); animation: avglow 2.2s ease-in-out infinite; }
+.avc.ready .n { color: var(--ink); }
+@keyframes avglow { 0%, 100% { box-shadow: var(--shadow), 0 0 0 0 color-mix(in srgb, var(--u1) 40%, transparent); } 50% { box-shadow: var(--shadow), 0 0 0 6px color-mix(in srgb, var(--u1) 0%, transparent), 0 0 22px color-mix(in srgb, var(--u1) 45%, transparent); } }
+.avburst { font-size: 64px; text-align: center; line-height: 1; animation: avpop .7s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes avpop { from { transform: scale(.2) rotate(-25deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+
 </style>
 </head>
 <body>
@@ -1006,6 +1023,16 @@ table.cmp th { font-size: 12px; color: var(--ink2); }
    À chaque mise à jour visible par les utilisateurs : ajouter une entrée en tête, avec un id unique (date + mot-clé).
    Ne jamais y mettre les fonctions d'administration. */
 window.NOUS_NEWS = [
+  {
+    id: '2026-11-17-avent', date: '2026-11-17', title: 'Calendrier de l\'Avent 🎄',
+    items: [
+      'Prépare dès maintenant 24 cases pour ta moitié : un mot, une photo, un bon ou un petit défi (Plus → Avent).',
+      'Les cases de l\'autre restent fermées jusqu\'à leur jour : la première s\'ouvre le 1er décembre, puis une chaque matin.',
+      'Mot de passe oublié ? Ajoute ton adresse e-mail dans Réglages pour recevoir un lien depuis l\'écran de connexion.',
+      'Réglages → Nos données : exporte tout votre espace (données, photos, documents) en un fichier zip, ou supprime-le si un jour vous le souhaitez.',
+      'Vos données sont maintenant sauvegardées automatiquement chaque nuit.'
+    ]
+  },
   {
     id: '2026-11-17-instant', date: '2026-11-17', title: 'Instant du jour 📸',
     items: [
@@ -1159,7 +1186,7 @@ window.NOUS_NEWS = [
 /* Nous — socle : utilitaires, stockage (serveur ou démo locale), feuilles, formulaires. */
 const D = document;
 const $ = (s, r = D) => r.querySelector(s);
-const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps'];
+const COLS = ['events', 'places', 'expenses', 'settlements', 'recurring', 'notes', 'folders', 'docfiles', 'flats', 'answers', 'lists', 'items', 'wishes', 'countdowns', 'photos', 'wheel', 'profiles', 'moods', 'milestones', 'coupons', 'scheduled', 'cycles', 'trackers', 'tlogs', 'meals', 'chores', 'chorelog', 'pots', 'potins', 'trips', 'infos', 'disputes', 'defis', 'quiz', 'capsules', 'pokes', 'songs', 'poops', 'snaps', 'avent'];
 const S = { me: null, users: [], cols: {}, rev: 0, view: 'home', demo: false, dirty: false };
 let B = null; // stockage actif
 const VIEWS = {};
@@ -1241,7 +1268,7 @@ function checkVersion(v) {
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => { }).then(go2); else go2();
 }
 function applySync(j) {
-  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; S.snapAt = j.snapAt || null;
+  S.me = j.me; S.users = j.users; S.cols = j.cols; S.rev = j.rev; S.vapid = j.vapid; S.snapAt = j.snapAt || null; S.mail = !!j.mail; S.adminSpace = !!j.adminSpace; S.deleteAt = j.deleteAt || null;
   const own = ((j.cols.profiles || {})._couple || {}).cities; // les villes choisies par le couple, sinon celles par défaut du serveur
   if (typeof setCities === 'function') setCities(own && own.length ? own : j.cities);
 }
@@ -1281,6 +1308,7 @@ const Demo = {
         if (c === 'wishes' && d.owner === me) { v = { ...d }; delete v.reservedBy; }
         if (c === 'answers' && d.user !== me && !mine.has(d.date)) v = { id: d.id, date: d.date, user: d.user, hidden: true };
         if (c === 'scheduled' && d.by !== me) continue;
+        if (c === 'avent' && d.by !== me && `${d.year}-12-${pad(d.day)}` > iso(new Date())) v = { id: d.id, year: d.year, day: d.day, by: d.by, hidden: true }; // case de l'Avent encore fermée
         if (c === 'snaps' && d.user !== me && !mySnaps.has(d.date)) v = { id: d.id, date: d.date, user: d.user, when: d.when, onTime: d.onTime, hidden: true };
         if (c === 'quiz' && d.about !== me && !d.guess) { v = { ...d }; delete v.answer; } // la réponse reste cachée tant qu'on n'a pas deviné
         if (c === 'capsules' && d.by !== me && d.openAt > iso(new Date())) { v = { ...d, sealed: true }; delete v.text; }
@@ -1315,6 +1343,7 @@ const Demo = {
     if (col === 'wishes' && prev && prev.owner === S.me.id) { if (prev.reservedBy) d.reservedBy = prev.reservedBy; else delete d.reservedBy; }
     if (col === 'quiz' && prev && S.me.id !== prev.about) d.answer = prev.answer;
     if (col === 'capsules' && prev) { d.text = prev.text; delete d.sealed; }
+    if (col === 'avent' && prev && prev.by !== S.me.id) { Object.assign(d, prev, { openedAt: prev.openedAt || Date.now() }); if (!prev.openedAt && prev.kind === 'bon') { const cid = 'av' + uid(); this.raw.coupons[cid] = { id: cid, title: prev.title, emoji: prev.emoji || '🎟️', from: prev.by, to: S.me.id, by: prev.by, at: Date.now(), avent: prev.day }; } }
     this.raw[col][doc.id] = d; this.save(); this.view();
   },
   async del(col, id) { delete this.raw[col][id]; this.save(); this.view(); },
@@ -1528,6 +1557,7 @@ function showLogin() {
     h('div', { class: 'f' }, h('label', { htmlFor: 'l_pwd' }, 'Mot de passe'), h('input', { class: 'inp', id: 'l_pwd', type: 'password', autocomplete: 'current-password', value: v.password, oninput: e => v.password = e.target.value })),
     err,
     h('button', { class: 'btn pri full', type: 'submit' }, 'Se connecter'),
+    !S.demo && h('button', { class: 'btn full', type: 'button', onclick: () => forgotSheet(v.login) }, 'Mot de passe oublié ?'),
     S.demo ? h('p', { class: 'small faint center' }, 'Version de démonstration : identifiant « mathis » ou « morgane », mot de passe libre. Les données restent sur cet appareil.')
       : h('p', { class: 'small faint center' }, 'Pas encore de compte ? L\'inscription se fait avec un lien d\'invitation.'));
   $('#app').replaceChildren(form);
@@ -1539,7 +1569,7 @@ async function showRegister(code) {
   let info;
   try { info = await api('GET', '/api/invite/' + encodeURIComponent(code)); }
   catch (e) { try { history.replaceState(null, '', '/'); } catch (x) { } showLogin(); const p = $('.login .bad'); if (p) p.textContent = e.message; return; }
-  const v = { name: '', login: '', password: '', confirm: '' }, err = h('p', { class: 'small bad', role: 'alert' });
+  const v = { name: '', login: '', email: '', password: '', confirm: '' }, err = h('p', { class: 'small bad', role: 'alert' });
   const field = (k, label, attrs, hint) => h('div', { class: 'f' }, h('label', { htmlFor: 'r_' + k }, label), h('input', { class: 'inp', id: 'r_' + k, ...attrs, oninput: e => { v[k] = e.target.value; if (k === 'name' && !v.loginTouched) { v.login = suggestLogin(v.name); $('#r_login').value = v.login; } if (k === 'login') v.loginTouched = true; } }), hint && h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, hint));
   const form = h('form', {
     class: 'glass card login', onsubmit: async e => {
@@ -1547,7 +1577,7 @@ async function showRegister(code) {
       if (v.password !== v.confirm) { err.textContent = 'Les deux mots de passe ne sont pas identiques.'; return; }
       const btn = $('button[type=submit]', form); btn.disabled = true;
       try {
-        await api('POST', '/api/register', { code, name: v.name, login: v.login, password: v.password });
+        await api('POST', '/api/register', { code, name: v.name, login: v.login, email: v.email, password: v.password });
         try { history.replaceState(null, '', '/'); } catch (x) { }
         if (await B.boot()) route();
       } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
@@ -1558,9 +1588,53 @@ async function showRegister(code) {
     h('p', { class: 'small muted' }, info.kind === 'partner' ? 'Crée ton compte : vous retrouverez tout ensemble, agenda, comptes, petits mots.' : 'Crée ton compte. Tu recevras ensuite un lien à envoyer à ta moitié pour qu\'elle te rejoigne.'),
     field('name', 'Ton prénom', { autocomplete: 'given-name', maxLength: 30, required: true }),
     field('login', 'Identifiant de connexion', { autocomplete: 'username', autocapitalize: 'none', maxLength: 30, required: true }, 'Lettres minuscules, chiffres, points ou tirets.'),
+    field('email', 'Adresse e-mail (facultatif)', { type: 'email', autocomplete: 'email', autocapitalize: 'none', maxLength: 254 }, 'Seulement pour recevoir un lien si tu oublies ton mot de passe.'),
     field('password', 'Mot de passe', { type: 'password', autocomplete: 'new-password', minLength: 10, required: true }, '10 caractères minimum.'),
     field('confirm', 'Confirme le mot de passe', { type: 'password', autocomplete: 'new-password', required: true }),
     err, h('button', { class: 'btn pri full', type: 'submit' }, 'Créer mon compte'));
+  $('#app').replaceChildren(form);
+}
+/* ----- mot de passe oublié : lien envoyé par e-mail, puis écran de nouveau mot de passe ----- */
+function forgotSheet(login) {
+  const v = { who: login || '' };
+  openSheet('Mot de passe oublié', c => [
+    h('p', { class: 'small muted' }, 'Indique ton identifiant ou ton adresse e-mail. Si ton compte a une adresse enregistrée, tu reçois un lien pour choisir un nouveau mot de passe.'),
+    h('div', { class: 'f' }, h('label', { htmlFor: 'fg_who' }, 'Identifiant ou e-mail'), h('input', { class: 'inp', id: 'fg_who', autocomplete: 'username', autocapitalize: 'none', value: v.who, oninput: e => v.who = e.target.value })),
+    h('button', { class: 'btn pri full', onclick: async e => {
+      if (!v.who.trim()) return toast('Indique ton identifiant ou ton e-mail');
+      e.target.disabled = true;
+      try { const r = await api('POST', '/api/forgot', { who: v.who.trim() }); c.close(); openSheet('Regarde tes e-mails 📬', d => [h('p', { class: 'muted' }, r.message), h('button', { class: 'btn pri full', onclick: () => d.close() }, 'OK')]); }
+      catch (ex) { e.target.disabled = false; toast(ex.message); }
+    } }, 'Recevoir le lien'),
+    h('p', { class: 'small faint center' }, 'Pas d\'adresse enregistrée ? Demande à l\'administrateur de réinitialiser ton mot de passe.')
+  ]);
+}
+async function showReset(code) {
+  $('#tabs').hidden = true;
+  let info;
+  try { info = await api('GET', '/api/reset/' + encodeURIComponent(code)); }
+  catch (e) { try { history.replaceState(null, '', '/'); } catch (x) { } showLogin(); const p = $('.login .bad'); if (p) p.textContent = e.message; return; }
+  const v = { password: '', confirm: '' }, err = h('p', { class: 'small bad', role: 'alert' });
+  const field = (k, label) => h('div', { class: 'f' }, h('label', { htmlFor: 'rs_' + k }, label), h('input', { class: 'inp', id: 'rs_' + k, type: 'password', autocomplete: 'new-password', minLength: 10, required: true, oninput: e => v[k] = e.target.value }));
+  const form = h('form', {
+    class: 'glass card login', onsubmit: async e => {
+      e.preventDefault(); err.textContent = '';
+      if (v.password !== v.confirm) { err.textContent = 'Les deux mots de passe ne sont pas identiques.'; return; }
+      const btn = $('button[type=submit]', form); btn.disabled = true;
+      try {
+        await api('POST', '/api/reset', { code, password: v.password });
+        try { history.replaceState(null, '', '/'); } catch (x) { }
+        toast('Mot de passe changé ✓');
+        if (await B.boot()) route(); else showLogin();
+      } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+    }
+  },
+    h('div', { class: 'logo' }, 'Nous'),
+    h('p', { class: 'mid' }, `Nouveau mot de passe${info.name ? ', ' + info.name : ''}`),
+    h('p', { class: 'small muted' }, `Pour le compte « ${info.login} ». Tes autres appareils seront déconnectés.`),
+    h('input', { type: 'text', autocomplete: 'username', value: info.login, hidden: true, readOnly: true }),
+    field('password', 'Nouveau mot de passe (10 caractères minimum)'), field('confirm', 'Confirme le mot de passe'),
+    err, h('button', { class: 'btn pri full', type: 'submit' }, 'Enregistrer'));
   $('#app').replaceChildren(form);
 }
 const suggestLogin = n => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9.-]+/g, '').slice(0, 30);
@@ -1634,7 +1708,8 @@ function enter() {
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.installEvt = e; });
 async function start() {
   S.demo = !!window.NOUS_DEMO; B = S.demo ? Demo : Remote;
-  let code = null; try { code = new URLSearchParams(location.search).get('invitation'); } catch (e) { }
+  let code = null, reinit = null; try { const q = new URLSearchParams(location.search); code = q.get('invitation'); reinit = q.get('reinit'); } catch (e) { }
+  if (reinit && !S.demo) return showReset(reinit);
   if (code && !S.demo) { if (await B.boot()) { try { history.replaceState(null, '', '/'); } catch (e) { } route(); } else showRegister(code); return; }
   if (await B.boot()) route(); else showLogin();
 }
@@ -1730,6 +1805,7 @@ VIEWS.home = () => {
           : tg.in === 0 ? `Ensemble à ${tg.place}${tg.end > t ? ' jusqu\'à ' + fmtD(tg.end, { weekday: 'long', day: 'numeric', month: 'long' }) : ' aujourd\'hui'}`
             : `Retrouvailles à ${tg.place}, ${fmtD(tg.date, { weekday: 'long', day: 'numeric', month: 'long' })}`))),
     snapCard(),
+    aventCard(),
     pokeCard(),
     todayCard(),
     moodCard(),
@@ -2287,6 +2363,35 @@ async function checkPush() {
   if (S.demo || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
   try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); const on = !!sub && Notification.permission === 'granted'; if (on !== !!S.pushOn) { S.pushOn = on; if (S.view === 'reglages') render(); } } catch (e) { }
 }
+/* ----- nos données : export et suppression de l'espace ----- */
+function exportSpace() {
+  if (S.demo) return toast('Sur morgane.kratox.fr, tu récupères un zip avec toutes vos données et vos fichiers');
+  toast('Préparation de l\'export… ça peut prendre une minute avec beaucoup de photos');
+  const a = h('a', { href: '/api/export', download: '' }); D.body.append(a); a.click(); a.remove();
+}
+function deleteSpaceSheet() {
+  if (S.demo) return toast('En démo, rien n\'est supprimé');
+  const alone = S.users.length < 2, o = other();
+  formSheet({
+    title: 'Supprimer notre espace', submit: alone ? 'Supprimer définitivement' : 'Demander la suppression',
+    fields: [{ k: 'password', label: 'Ton mot de passe, pour confirmer', type: 'password', auto: 'current-password', required: true, hint: alone ? 'Ton compte et tout ce qu\'il contient seront effacés immédiatement. Pense à exporter vos données avant.' : `Vos deux comptes et tout le contenu de l'espace seront effacés au bout de 3 jours, le temps que ${o.name} soit prévenu et puisse annuler. Pense à exporter vos données avant.` }],
+    onSubmit: async v => {
+      if (!(await confirmSheet('Tu es sûr ?', alone ? 'Ton compte et toutes les données de l\'espace seront effacés tout de suite.' : `Dans 3 jours, vos deux comptes et toutes vos données (photos, documents, mots…) seront effacés. ${o.name} est prévenu et chacun peut annuler d'ici là.`, alone ? 'Supprimer' : 'Programmer la suppression', true))) return false;
+      const r = await api('POST', '/api/space/delete', { password: v.password });
+      if (r.deleted) { S.me = null; showLogin(); toast('Espace supprimé. Au revoir 👋'); return; }
+      S.deleteAt = r.deleteAt; render(true); toast(`${o.name} est prévenu`);
+    }
+  });
+}
+function deletionBanner() {
+  if (!S.deleteAt) return null;
+  const when = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(S.deleteAt));
+  return h('section', { class: 'glass card', style: { borderColor: 'var(--bad)' } },
+    h('div', { class: 'b bad' }, '⚠️ Suppression de l\'espace programmée'),
+    h('p', { class: 'small muted' }, `Toutes vos données seront effacées ${when}. Exportez-les avant si vous voulez les garder.`),
+    h('button', { class: 'btn pri full', onclick: async () => { try { await api('POST', '/api/space/cancel', {}); S.deleteAt = null; render(true); toast('Suppression annulée 💗'); } catch (e) { toast(e.message); } } }, 'Annuler la suppression'),
+    h('button', { class: 'btn full', onclick: exportSpace }, '📦 Exporter nos données'));
+}
 VIEWS.reglages = () => {
   const me = S.me, pr = profile(me.id), cp = couple();
   const setP = patch => put('profiles', { ...pr, id: me.id, ...patch });
@@ -2295,6 +2400,7 @@ VIEWS.reglages = () => {
   const sw = (on, fn, label) => h('button', { class: 'chip' + (on ? ' on' : ''), role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: fn }, on ? 'Activé' : 'Désactivé');
   return [
     head('Réglages', { back: 'plus' }),
+    deletionBanner(),
     sec(h('div', { class: 'row' }, avatar(me.id), h('div', { class: 'grow' }, h('div', { class: 'mid' }, me.name), h('div', { class: 'small muted' }, 'Connecté sur cet appareil'))),
       h('div', { class: 'f' }, h('label', { htmlFor: 's_home' }, 'Ma ville habituelle'), h('select', { class: 'inp', id: 's_home', onchange: e => setP({ home: e.target.value }) }, [['', 'Non précisée'], ...PLACES.map(p => [p[0], p[0]])].map(([v, l]) => h('option', { value: v, selected: (pr.home || '') === v }, l))), h('span', { class: 'small faint', style: { paddingLeft: '4px' } }, 'Utilisée les jours où tu n\'as rien indiqué dans l\'agenda.'))),
     sec(eyebrow('Notifications'),
@@ -2305,6 +2411,14 @@ VIEWS.reglages = () => {
       h('div', { class: 'f' }, h('label', { htmlFor: 's_bud' }, 'Budget logement maximum, charges comprises (€)'), h('input', { class: 'inp', id: 's_bud', type: 'number', inputMode: 'numeric', value: cp.budget == null ? '' : cp.budget, onchange: e => setC({ budget: +e.target.value || 0 }) })),
       h('div', { class: 'f' }, h('div', { class: 'lab' }, 'Répartition par défaut des dépenses'), h('div', { class: 'seg' }, [['half', 'Moitié-moitié'], ['pct', 'Au prorata']].map(([k, l]) => h('button', { class: (cp.defaultSplit || 'half') === k ? 'on' : '', onclick: () => setC({ defaultSplit: k }) }, l)))),
       cp.defaultSplit === 'pct' && h('div', { class: 'f' }, h('label', { htmlFor: 's_pct' }, `Part de ${S.users[0].name} (%)`), h('input', { class: 'inp', id: 's_pct', type: 'number', min: 0, max: 100, value: cp.pct == null ? 50 : cp.pct, onchange: e => setC({ pct: Math.max(0, Math.min(100, +e.target.value || 0)) }) }))),
+    !S.demo && sec(eyebrow('Mot de passe oublié'),
+      h('p', { class: 'small muted' }, S.mail ? 'Avec une adresse e-mail, tu peux recevoir un lien pour choisir un nouveau mot de passe depuis l\'écran de connexion.' : 'Ton adresse servira à recevoir un lien si tu oublies ton mot de passe (l\'envoi d\'e-mails n\'est pas encore activé sur ce serveur).'),
+      h('div', { class: 'f' }, h('label', { htmlFor: 's_mail' }, 'Mon adresse e-mail'), h('input', { class: 'inp', id: 's_mail', type: 'email', autocomplete: 'email', autocapitalize: 'none', placeholder: 'prenom@exemple.fr', value: me.email || '' })),
+      h('button', { class: 'btn full', onclick: async () => { const e = $('#s_mail').value.trim(); try { const r = await api('POST', '/api/email', { email: e }); S.me.email = e.toLowerCase(); toast(!e ? 'Adresse retirée' : r.sent ? 'Adresse enregistrée, un e-mail de confirmation est parti 📬' : 'Adresse enregistrée'); } catch (x) { toast(x.message); } } }, 'Enregistrer l\'adresse')),
+    sec(eyebrow('Nos données'),
+      h('p', { class: 'small muted' }, 'Récupère tout ce que tu vois dans l\'app (agenda, comptes, mots, photos, documents…) dans un fichier zip, à garder ou à ouvrir sur un ordinateur.'),
+      h('button', { class: 'btn full', onclick: exportSpace }, '📦 Exporter nos données'),
+      !S.adminSpace && !S.deleteAt && h('button', { class: 'btn danger full', onclick: deleteSpaceSheet }, 'Supprimer notre espace')),
     S.me.admin && !S.demo ? h('button', { class: 'glass card tap', onclick: () => go('admin') }, h('div', { class: 'row' }, h('span', { class: 'emo' }, '🛡️'), h('div', { class: 'grow' }, h('div', { class: 'b' }, 'Administration'), h('div', { class: 'small muted' }, 'Inviter des couples, gérer les comptes')), icon('next'))) : null,
     sec(eyebrow('Application'),
       h('button', { class: 'btn full', onclick: () => newsSheet(window.NOUS_NEWS || [], false) }, '✨ Nouveautés'),
@@ -2898,7 +3012,7 @@ VIEWS.playlist = () => {
 VIEWS.plus = () => {
   const t = today(), me = S.me.id, o = other(), w = monday(t);
   const groups = [
-    ['Nous deux', [['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['envies', '🎁', 'Envies'], ['playlist', '🎶', 'Playlist'], ['cycle', '🌸', 'Cycle']]],
+    ['Nous deux', [['avent', '🎄', 'Avent', AV_ORDER.filter(d => avReady(d, o.id)).length], ['mots', '💌', 'Petits mots'], ['question', '💬', 'Question du jour', ans(t, me) ? 0 : 1], ['bons', '🎟️', 'Bons', all('coupons').filter(c => c.to === me && !c.usedAt).length], ['envies', '🎁', 'Envies'], ['playlist', '🎶', 'Playlist'], ['cycle', '🌸', 'Cycle']]],
     ['Quotidien', [['listes', '✅', 'Listes', all('items').filter(i => !i.done).length], ['menu', '🍽️', 'Menu'], ['taches', '🧹', 'Qui fait quoi', all('chores').filter(c => c.next <= t && c.turn === me).length], ['cagnotte', '🏝️', 'Cagnottes'], ['trajets', '🚄', 'Trajets'], ['infos', '📌', 'Infos pratiques'], ['docs', '🗂️', 'Documents'], ['suivi', '📊', 'Suivi']]],
     ['Jeux', [['roue', '🎡', 'La roue'], ['defi', '🏅', 'Défi', ((S.cols.defis || {})[w] || { done: {} }).done[me] ? 0 : 1], ['quiz', '🎯', 'Quiz', all('quiz').filter(r => (r.about === o.id && !r.guess) || (r.about === me && r.guess && r.ok == null)).length], ['tribunal', '⚖️', 'Tribunal', all('disputes').filter(d => !d.winner && !(d.sides || {})[me]).length], ['caca', '💩', 'Caca map'], ['trophees', '🏆', 'Trophées']]],
     ['Souvenirs', [['instants', '⚡', 'Instants', snapOf(t, me) ? 0 : 1], ['photos', '📸', 'Photos'], ['histoire', '📖', 'Notre histoire'], ['capsules', '💊', 'Capsules'], ['bilan', '📅', 'Bilan du mois'], ['rebours', '⏳', 'Comptes à rebours']]]
@@ -2942,6 +3056,7 @@ VIEWS.admin = () => {
       h('div', { class: 'center' }, h('div', { class: 'big num' }, A.couples.reduce((s, c) => s + c.users.length, 0)), h('div', { class: 'tiny muted' }, 'comptes')),
       h('div', { class: 'center' }, h('div', { class: 'big num' }, size(total)), h('div', { class: 'tiny muted' }, 'de fichiers')))),
     h('button', { class: 'btn pri full', onclick: invite }, 'Inviter un couple'),
+    h('p', { class: 'small faint center' }, (A.backupAt ? `Dernière sauvegarde automatique : ${fmtT(A.backupAt)}` : 'Pas encore de sauvegarde automatique (elle se fait chaque nuit vers 4 h)') + (A.mail ? ' · e-mails activés' : ' · e-mails non configurés')),
     sec(eyebrow('Notification à tout le monde'),
       h('p', { class: 'small muted' }, 'Envoyée sur le téléphone de tous les comptes, tous espaces confondus, s\'ils ont activé les notifications.'),
       h('button', { class: 'btn full', onclick: () => formSheet({
@@ -3193,6 +3308,133 @@ VIEWS.instants = () => {
 </script>
 <script>
 'use strict';
+/* Nous — calendrier de l'Avent à deux : chacun prépare 24 cases pour l'autre (mot, photo, bon, défi).
+   La case n s'ouvre le n décembre ; avant, le serveur ne transmet rien de son contenu, seulement qu'elle est remplie. */
+const AV_ORDER = [7, 19, 2, 13, 22, 5, 16, 10, 1, 24, 12, 4, 18, 9, 21, 3, 15, 8, 20, 11, 23, 6, 14, 17]; // l'ordre des cases sur la grille, comme un vrai calendrier
+const AV_KINDS = [['mot', '💌', 'Mot'], ['photo', '📸', 'Photo'], ['bon', '🎟️', 'Bon'], ['defi', '🏅', 'Défi']];
+const avKind = k => AV_KINDS.find(x => x[0] === k) || AV_KINDS[0];
+const AV_DEFIS = ['Un bisou surprise avant midi', 'Choisis la musique de la soirée', 'Envoie-moi ton plus vieux selfie', 'Un câlin de 20 secondes, chrono en main', 'Raconte-moi ton meilleur souvenir de Noël', 'Ce soir, film de Noël sous le plaid', 'Prépare-nous un chocolat chaud', 'Dis-moi trois choses que tu aimes chez moi', 'Une photo moche de nous deux, la plus moche possible', 'Appelle-moi juste pour dire bonjour', 'On décore un truc ensemble ce soir', 'Écris-moi un petit poème de quatre lignes', 'On danse sur une chanson de Noël, même ridicule', 'Choisis le resto de la semaine', 'Envoie-moi une photo de ce que tu vois là, tout de suite'];
+const AV_MOTS = ['Plus que quelques jours avant Noël, et toujours aussi heureux de t\'avoir 🎄', 'Aujourd\'hui, je pense à la première fois où je t\'ai vu·e…', 'Ce que je préfère chez toi ce mois-ci : ', 'Mon souvenir préféré de cette année avec toi : ', 'Tu es mon cadeau préféré, et de loin.', 'Je t\'aime plus que les marrons chauds. Et c\'est beaucoup.', 'Une chose que je ne te dis pas assez : '];
+const avYear = () => +today().slice(0, 4);
+const avId = (d, u) => `${avYear()}-${pad(d)}_${u}`;
+const avDoc = (d, u) => (S.cols.avent || {})[avId(d, u)];
+const avDate = d => `${avYear()}-12-${pad(d)}`;
+const avReady = (d, u) => { const x = avDoc(d, u); return x && !x.hidden && !x.openedAt && today() >= avDate(d); };
+const avPick = l => l[Math.floor(Math.random() * l.length)];
+
+/* ----- ouvrir une case reçue ----- */
+function avShow(x, fresh) {
+  const k = avKind(x.kind), from = x.by === S.me.id ? `Pour ${nameOf(x.to)}` : `De ${nameOf(x.by)}`;
+  openSheet(`${k[1]} ${x.day} décembre`, c => [
+    fresh && h('div', { class: 'avburst', 'aria-hidden': 'true' }, '🎁'),
+    h('div', { class: 'eyebrow' }, from),
+    x.kind === 'photo' && x.fileId ? h('div', { class: 'viewer' }, h('img', { src: B.fileUrl(x.fileId), alt: x.text || 'Photo' })) : null,
+    x.kind === 'bon' ? h('div', { class: 'glass card coupon' }, h('div', { class: 'row' }, h('span', { class: 'emo', style: { fontSize: '24px', width: '48px', height: '48px' } }, x.emoji || '🎟️'),
+      h('div', { class: 'grow' }, h('div', { class: 'tiny muted b', style: { textTransform: 'uppercase' } }, 'Bon pour'), h('div', { class: 'mid' }, x.title)))) : null,
+    x.kind === 'defi' ? h('div', { class: 'tiny muted b', style: { textTransform: 'uppercase' } }, 'Défi du jour') : null,
+    x.text ? h('p', { class: x.kind === 'mot' || x.kind === 'defi' ? 'mid' : '', style: { whiteSpace: 'pre-wrap' } }, x.text) : null,
+    x.kind === 'bon' && x.by !== S.me.id ? h('p', { class: 'small muted' }, 'Ce bon t\'attend dans Plus → Bons, à utiliser quand tu veux.') : null,
+    x.kind === 'bon' && x.by !== S.me.id ? h('button', { class: 'btn full', onclick: () => { c.close(); S.bonTab = 'recus'; go('bons'); } }, 'Voir mes bons') : null,
+    h('button', { class: 'btn pri full', onclick: () => c.close() }, x.by === S.me.id ? 'Fermer' : 'Merci 💗')
+  ]);
+}
+async function avOpen(d) {
+  const o = other(), x = avDoc(d, o.id);
+  if (!x || x.hidden) return toast(`Patience, cette case s'ouvre le ${d} décembre 🎄`);
+  if (!x.openedAt) { await put('avent', { ...x, openedAt: Date.now() }); toast(S.demo ? `En vrai, ${o.name} sait que tu as ouvert sa case` : 'Case ouverte 🎄'); }
+  avShow({ ...x, openedAt: x.openedAt || Date.now() }, !x.openedAt);
+}
+
+/* ----- préparer une case pour l'autre ----- */
+function avEdit(d) {
+  const me = S.me.id, o = other(), prev = avDoc(d, me);
+  if (prev && prev.openedAt) return avShow(prev);
+  const v = { kind: 'mot', text: '', title: '', emoji: '🎟️', fileId: null, ...(prev || {}) };
+  let blob = null, preview = prev && prev.fileId ? B.fileUrl(prev.fileId) : null, busy = false;
+  const label = { mot: `Ton mot pour ${o.name}`, photo: 'Une légende (facultatif)', bon: 'Un petit mot avec (facultatif)', defi: 'Le défi' };
+  const save = async c => {
+    if (busy) return;
+    const text = (v.text || '').trim(), title = (v.title || '').trim();
+    if ((v.kind === 'mot' || v.kind === 'defi') && !text) return toast(v.kind === 'mot' ? 'Écris ton mot' : 'Écris le défi');
+    if (v.kind === 'bon' && !title) return toast('Écris ce que tu offres');
+    if (v.kind === 'photo' && !blob && !v.fileId) return toast('Choisis une photo');
+    busy = true;
+    try {
+      let fileId = v.kind === 'photo' ? v.fileId : null;
+      if (v.kind === 'photo' && blob) { toast('Envoi de la photo…'); fileId = (await B.upload(blob, `avent-${pad(d)}.jpg`)).id; }
+      await put('avent', { id: avId(d, me), year: avYear(), day: d, to: o.id, kind: v.kind, text, title: v.kind === 'bon' ? title : '', emoji: v.kind === 'bon' ? v.emoji : '', fileId });
+      if (prev && prev.fileId && prev.fileId !== fileId) B.delFile(prev.fileId).catch(() => { });
+      c.close(); toast(`Case du ${d} prête 🎄`);
+    } catch (e) { busy = false; toast(e.message || 'Enregistrement impossible'); }
+  };
+  openSheet(`Case du ${d} décembre`, c => [
+    h('p', { class: 'small muted' }, `${o.name} pourra l'ouvrir le ${d} décembre. D'ici là, ${o.name} voit seulement que la case est prête.`),
+    h('div', { class: 'seg' }, AV_KINDS.map(([k, e, l]) => h('button', { class: v.kind === k ? 'on' : '', onclick: () => { v.kind = k; c.refresh(); } }, e + ' ' + l))),
+    v.kind === 'photo' && [
+      preview ? h('div', { class: 'viewer' }, h('img', { src: preview, alt: 'Ta photo' })) : null,
+      h('button', { class: 'btn full', onclick: async () => { const fs = await pickFiles('image/*'); if (!fs.length) return; blob = await shrink(fs[0]); preview = URL.createObjectURL(blob); c.refresh(); } }, preview ? 'Changer la photo' : '📸 Choisir une photo')],
+    v.kind === 'bon' && [
+      h('div', { class: 'chips' }, BON_IDEAS.map(([e, t]) => h('button', { class: 'chip' + (v.title === t ? ' on' : ''), onclick: () => { v.emoji = e; v.title = t; c.refresh(); } }, e + ' ' + t))),
+      h('div', { class: 'f' }, h('label', { htmlFor: 'av_t' }, 'Bon pour…'), h('input', { class: 'inp', id: 'av_t', maxLength: 90, placeholder: 'Ton idée', value: v.title, oninput: e => { v.title = e.target.value; v.emoji = '🎟️'; } })),
+      h('p', { class: 'small faint' }, `En ouvrant la case, ${o.name} le retrouve dans ses bons.`)],
+    h('div', { class: 'f' }, h('label', { htmlFor: 'av_x' }, label[v.kind]), h('textarea', { class: 'inp', id: 'av_x', maxLength: 1000, placeholder: v.kind === 'defi' ? 'Un câlin de 20 secondes…' : '', value: v.text || '', oninput: e => v.text = e.target.value })),
+    (v.kind === 'mot' || v.kind === 'defi') && h('button', { class: 'btn full', onclick: () => { v.text = avPick(v.kind === 'mot' ? AV_MOTS : AV_DEFIS); c.refresh(); } }, '🎲 Une idée'),
+    h('button', { class: 'btn pri full', onclick: () => save(c) }, prev ? 'Enregistrer' : 'Ranger dans la case'),
+    prev && h('button', { class: 'btn danger full', onclick: async () => { if (!(await confirmSheet('Vider cette case ?', '', 'Vider', true))) return; if (prev.fileId) B.delFile(prev.fileId).catch(() => { }); await del('avent', prev.id); c.close(); } }, 'Vider la case')
+  ]);
+}
+
+/* ----- la vue ----- */
+VIEWS.avent = () => {
+  const me = S.me.id, o = other(), t = today(), Y = avYear(), start = `${Y}-12-01`;
+  const before = t < start, nDay = !before && t <= `${Y}-12-24` ? +t.slice(8) : before ? 0 : 25;
+  const tab = S.avTab || (before ? 'prep' : 'recu');
+  const mine = AV_ORDER.filter(d => avDoc(d, me)).length, theirs = AV_ORDER.filter(d => avDoc(d, o.id)).length;
+  const ready = AV_ORDER.filter(d => avReady(d, o.id)).length;
+  const daysLeft = daysBetween(t, start);
+  const cell = d => {
+    if (tab === 'prep') {
+      const x = avDoc(d, me);
+      return h('button', { class: 'avc' + (x ? ' full' : '') + (x && x.openedAt ? ' opened' : ''), 'aria-label': `Case du ${d}${x ? ', prête' : ', vide'}`, onclick: () => avEdit(d) },
+        h('span', { class: 'n' }, d), h('span', { class: 'e' }, x ? (x.openedAt ? '✓' : avKind(x.kind)[1]) : '+'));
+    }
+    const x = avDoc(d, o.id), open = t >= avDate(d);
+    const st = !open ? 'locked' : !x ? 'empty' : x.openedAt ? 'opened' : 'ready';
+    return h('button', { class: 'avc ' + st, 'aria-label': `Case du ${d}`, onclick: () => st === 'locked' ? toast(x ? `${o.name} a préparé cette case. Rendez-vous le ${d} décembre 🎄` : `S'ouvre le ${d} décembre`) : st === 'empty' ? toast(`${o.name} n'a rien mis dans cette case`) : st === 'ready' ? avOpen(d) : avShow(x) },
+      h('span', { class: 'n' }, d), h('span', { class: 'e' }, st === 'locked' ? (x ? '🎁' : '🔒') : st === 'empty' ? '·' : st === 'ready' ? '🎁' : avKind(x.kind)[1]));
+  };
+  return [
+    head('Calendrier de l\'Avent', { back: 'plus', sub: `Décembre ${Y}` }),
+    h('div', { class: 'seg' }, [['recu', `De ${o.name}`, ready], ['prep', `Pour ${o.name}`, 0]].map(([k, l, n]) => h('button', { class: tab === k ? 'on' : '', onclick: () => { S.avTab = k; render(true); } }, l + (n ? ` · ${n} 🎁` : '')))),
+    tab === 'recu'
+      ? sec(h('div', { class: 'mid' }, before ? `S'ouvre dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''} 🎄` : nDay <= 24 ? (ready ? `${ready} case${ready > 1 ? 's' : ''} à ouvrir 🎁` : 'Rien à ouvrir pour l\'instant, reviens demain 🎄') : 'Joyeux Noël 🎅'),
+        h('p', { class: 'small muted' }, before ? (theirs ? `${o.name} t'a déjà préparé ${theirs} case${theirs > 1 ? 's' : ''} sur 24 👀 Une case s'ouvre chaque jour à partir du 1er décembre.` : `${o.name} n'a pas encore rempli de case. Une case s'ouvre chaque jour à partir du 1er décembre.`) : `${theirs} case${theirs > 1 ? 's' : ''} préparée${theirs > 1 ? 's' : ''} par ${o.name}.`))
+      : sec(h('div', { class: 'row between' }, h('div', { class: 'mid' }, `${mine}/24 cases prêtes`), mine === 24 ? h('span', { class: 'pill', c: 'var(--good)' }, 'Complet 🎉') : null),
+        h('div', { class: 'track' }, h('i', { style: { width: (mine / 24 * 100) + '%' } })),
+        h('p', { class: 'small muted' }, `Un mot, une photo, un bon ou un petit défi par case. ${o.name} ne voit rien du contenu avant le jour de la case, seulement combien sont prêtes.`)),
+    h('div', { class: 'avgrid' }, AV_ORDER.map(cell)),
+    tab === 'recu' && nDay > 0 && nDay <= 24 && !avDoc(nDay, me) ? h('button', { class: 'btn full', onclick: () => { S.avTab = 'prep'; avEdit(nDay); render(true); } }, `Ta case du ${nDay} pour ${o.name} est vide : la remplir`) : null
+  ];
+};
+
+/* ----- carte d'accueil : le décompte fin novembre, puis la case du jour en décembre ----- */
+function aventCard() {
+  const t = today(), Y = avYear(), o = other();
+  if (t < `${Y}-11-15` || t > `${Y}-12-24`) return null;
+  if (t < `${Y}-12-01`) {
+    const n = AV_ORDER.filter(d => avDoc(d, S.me.id)).length, left = daysBetween(t, `${Y}-12-01`);
+    if (n === 24) return null;
+    return h('button', { class: 'glass card tap', onclick: () => { S.avTab = 'prep'; go('avent'); } }, eyebrow('Calendrier de l\'Avent', h('span', { class: 'pill', c: 'var(--good)' }, `J-${left}`)),
+      h('p', { class: 'mid' }, `🎄 ${n}/24 cases prêtes pour ${o.name}`), h('p', { class: 'small muted' }, 'Prépare ses surprises : une case s\'ouvre chaque jour à partir du 1er décembre.'));
+  }
+  const d = +t.slice(8), ready = avReady(d, o.id);
+  return h('button', { class: 'glass card tap', onclick: () => { S.avTab = 'recu'; if (ready) avOpen(d); go('avent'); } }, eyebrow('Calendrier de l\'Avent', ready ? h('span', { class: 'pill', c: 'var(--u1)' }, 'À ouvrir') : null),
+    h('p', { class: 'mid' }, ready ? `🎁 Ta case du ${d} décembre t'attend` : `🎄 Case du ${d} décembre`), h('p', { class: 'small muted' }, ready ? `${o.name} te l'a préparée.` : 'Retrouve toutes les cases déjà ouvertes.'));
+}
+
+</script>
+<script>
+'use strict';
 /* Données d'exemple pour la version de démonstration uniquement (jamais chargé sur le serveur). */
 window.nousSeed = function () {
   const t = today(), now = Date.now(), ym = t.slice(0, 7), M = 'mathis', G = 'morgane';
@@ -3312,6 +3554,12 @@ window.nousSeed = function () {
   // photos
   [['🌊', '#7fc8ff', '#ffe1a8', 'Biarritz', 40], ['🍝', '#ffb3a8', '#ffd98f', 'Le resto du samedi', 12], ['🌇', '#ffa9cc', '#8f9bff', 'Coucher de soleil sur les quais', 5], ['🎶', '#c4b0ff', '#ff9fc6', 'Avant le concert', 2]]
     .forEach(([e, a, b, caption, ago]) => add('photos', { fileId: pic(e, a, b), caption, date: addDays(t, -ago) }, ago % 2 ? G : M, ago * 24));
+  // calendrier de l'Avent : Morgane a déjà préparé 9 cases pour Mathis (fermées), Mathis en a fait 3
+  const Y = t.slice(0, 4);
+  [[1, 'mot', 'Le premier jour du compte à rebours. Je t\'aime 🎄'], [2, 'defi', 'Un chocolat chaud ensemble ce soir'], [3, 'bon', '', 'Un massage', '💆'], [5, 'mot', 'Plus que 19 jours !'], [8, 'defi', 'Envoie-moi ton plus vieux selfie'], [12, 'bon', '', 'Petit-déj au lit', '🍳'], [15, 'mot', 'Mon souvenir préféré de cette année : Biarritz sous la pluie.'], [20, 'defi', 'On danse sur une chanson de Noël'], [24, 'mot', 'Joyeux réveillon mon amour 🎅']]
+    .forEach(([d, kind, text, title, emoji]) => add('avent', { id: `${Y}-${pad(d)}_${G}`, year: +Y, day: d, to: M, kind, text, title: title || '', emoji: emoji || '' }, G, 30 - d));
+  [[1, 'mot', 'Premier jour de décembre, et toujours aussi fou de toi.'], [4, 'bon', '', 'Je fais la vaisselle une semaine', '🧽'], [6, 'defi', 'Choisis le resto de la semaine']]
+    .forEach(([d, kind, text, title, emoji]) => add('avent', { id: `${Y}-${pad(d)}_${M}`, year: +Y, day: d, to: G, kind, text, title: title || '', emoji: emoji || '' }, M, 10 - d));
   return { cols, files };
 };
 
